@@ -1,0 +1,133 @@
+// Sada (صدى) — Voice-based Arabic social platform
+// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String      @id @default(cuid())
+  email       String      @unique
+  username    String      @unique
+  name        String
+  bio         String?
+  avatarColor String      @default("#8b5cf6")
+  isAdmin     Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  sessions    Session[]
+  voiceNotes  VoiceNote[]
+  likes       Like[]
+  reports     Report[]
+
+  // Following = users I follow
+  following   Follow[]    @relation("Follower")
+  // Followers = users who follow me
+  followers   Follow[]    @relation("Followee")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Prompt {
+  id        String      @id @default(cuid())
+  text      String
+  // YYYY-MM-DD date string for which day this prompt is for
+  date      String      @unique
+  createdAt DateTime    @default(now())
+
+  voiceNotes VoiceNote[]
+}
+
+model VoiceNote {
+  id         String   @id @default(cuid())
+  promptId   String?
+  prompt     Prompt?  @relation(fields: [promptId], references: [id], onDelete: SetNull)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Base64-encoded audio data (Opus/WebM)
+  audioData  String
+  // MIME type, e.g. "audio/webm;codecs=opus"
+  mimeType   String   @default("audio/webm")
+  durationSec Int
+  // Optional text transcript (filled later by AI or manual)
+  transcript String?
+  plays      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  likes      Like[]
+  reports    Report[]
+
+  @@index([userId])
+  @@index([promptId])
+  @@index([createdAt])
+}
+
+model Follow {
+  id         String   @id @default(cuid())
+  followerId String
+  followeeId String
+  createdAt  DateTime @default(now())
+
+  follower   User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee   User     @relation("Followee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followeeId])
+  @@index([followeeId])
+}
+
+model Like {
+  id         String   @id @default(cuid())
+  userId     String
+  voiceNoteId String
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voiceNote  VoiceNote @relation(fields: [voiceNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, voiceNoteId])
+  @@index([voiceNoteId])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporterId  String
+  voiceNoteId String
+  // reason: "religion" | "politics" | "insult" | "spam" | "other"
+  reason      String
+  comment     String?
+  // status: "pending" | "reviewed" | "removed" | "dismissed"
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  reporter    User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  voiceNote   VoiceNote @relation(fields: [voiceNoteId], references: [id], onDelete: Cascade)
+
+  @@index([voiceNoteId])
+  @@index([status])
+}
+
+model SupportDonation {
+  id         String   @id @default(cuid())
+  userId     String?
+  name       String
+  amount     Float
+  currency   String   @default("USD")
+  message    String?
+  createdAt  DateTime @default(now())
+}
