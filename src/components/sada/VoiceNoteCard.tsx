@@ -3,7 +3,16 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Heart, Flag, MoreHorizontal, Play } from 'lucide-react'
+import {
+  Heart,
+  Flag,
+  MoreHorizontal,
+  Play,
+  Bookmark,
+  Share2,
+  FileText,
+  Loader2,
+} from 'lucide-react'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
 import { CommentsSection } from './CommentsSection'
@@ -44,6 +53,9 @@ export function VoiceNoteCard({
 }: VoiceNoteCardProps) {
   const [liked, setLiked] = useState(note.likedByMe ?? false)
   const [likesCount, setLikesCount] = useState(note.likesCount ?? 0)
+  const [saved, setSaved] = useState(note.bookmarkedByMe ?? false)
+  const [transcript, setTranscript] = useState<string | null>(note.transcript || null)
+  const [transcribing, setTranscribing] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [moreMenu, setMoreMenu] = useState(false)
   const user = useSada((s) => s.user)
@@ -69,6 +81,78 @@ export function VoiceNoteCard({
       setLiked(!newLiked)
       setLikesCount((c) => Math.max(0, c + (newLiked ? -1 : 1)))
       toast.error('مفيش نتال، حاول مرة تانية')
+    }
+  }
+
+  const toggleSave = async () => {
+    if (!user) {
+      toast.error('سجّل دخول الأول')
+      return
+    }
+    const newSaved = !saved
+    setSaved(newSaved)
+    try {
+      await fetch('/api/voice-notes/bookmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: note.id,
+          action: newSaved ? 'save' : 'unsave',
+        }),
+      })
+      toast.success(newSaved ? 'اتحفظ في قائمتك' : 'اتشال من المحفوظات')
+    } catch {
+      setSaved(!newSaved)
+      toast.error('فشل، حاول مرة تانية')
+    }
+  }
+
+  const transcribe = async () => {
+    if (transcript) return
+    setTranscribing(true)
+    try {
+      const res = await fetch('/api/voice-notes/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: note.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'فشل الترجمة')
+        return
+      }
+      setTranscript(data.transcript)
+      toast.success('اترجم الصوت لنص')
+    } catch {
+      toast.error('فشل الترجمة')
+    } finally {
+      setTranscribing(false)
+    }
+  }
+
+  const share = async () => {
+    try {
+      const res = await fetch('/api/voice-notes/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: note.id }),
+      })
+      const data = await res.json()
+      const shareUrl = `${window.location.origin}${data.url}`
+      if (navigator.share) {
+        await navigator.share({
+          title: 'صدى',
+          text: data.text,
+          url: shareUrl,
+        })
+      } else {
+        await navigator.clipboard.writeText(shareUrl)
+        toast.success('اتنسخ الرابط. شاركه مع أصحابك!')
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        toast.error('فشل المشاركة')
+      }
     }
   }
 
@@ -125,6 +209,27 @@ export function VoiceNoteCard({
                   <button
                     onClick={() => {
                       setMoreMenu(false)
+                      share()
+                    }}
+                    className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    مشاركة
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMoreMenu(false)
+                      transcribe()
+                    }}
+                    className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm"
+                    disabled={!!transcript || transcribing}
+                  >
+                    <FileText className="h-4 w-4" />
+                    {transcript ? 'النص متاح' : 'ترجمة لنص'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMoreMenu(false)
                       setReportOpen(true)
                     }}
                     className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm text-destructive"
@@ -158,6 +263,23 @@ export function VoiceNoteCard({
         onPlayedOnce={handlePlay}
       />
 
+      {/* Transcript (if available or being generated) */}
+      {transcribing && (
+        <div className="mt-3 p-3 rounded-xl bg-muted/30 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          جاري ترجمة الصوت لنص...
+        </div>
+      )}
+      {transcript && !transcribing && (
+        <div className="mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+          <div className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+            <FileText className="h-3 w-3" />
+            ترجمة الصوت
+          </div>
+          <p className="text-sm leading-relaxed">{transcript}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-3">
         <div className="flex items-center gap-4">
           <button
@@ -171,10 +293,28 @@ export function VoiceNoteCard({
             <span className="tabular-nums">{formatCount(likesCount)}</span>
           </button>
 
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Play className="h-3 w-3" />
-            <span className="tabular-nums">{formatCount(note.plays)}</span>
-          </div>
+          <button
+            onClick={toggleSave}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
+            aria-label="حفظ"
+          >
+            <Bookmark
+              className={`h-4 w-4 ${saved ? 'fill-primary text-primary' : ''}`}
+            />
+          </button>
+
+          <button
+            onClick={share}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
+            aria-label="مشاركة"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Play className="h-3 w-3" />
+          <span className="tabular-nums">{formatCount(note.plays)}</span>
         </div>
       </div>
 

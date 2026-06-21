@@ -43,6 +43,17 @@ interface SadaState {
   // Settings modal
   settingsOpen: boolean
   setSettingsOpen: (v: boolean) => void
+
+  // Followers/following modal
+  followListOpen: boolean
+  followListMode: 'followers' | 'following'
+  followListUserId: string | null
+  openFollowList: (userId: string, mode: 'followers' | 'following') => void
+  closeFollowList: () => void
+
+  // Shared voice note modal (via ?share=ID)
+  sharedNoteId: string | null
+  setSharedNoteId: (id: string | null) => void
 }
 
 export const useSada = create<SadaState>((set) => ({
@@ -76,4 +87,14 @@ export const useSada = create<SadaState>((set) => ({
 
   settingsOpen: false,
   setSettingsOpen: (v) => set({ settingsOpen: v }),
+
+  followListOpen: false,
+  followListMode: 'followers',
+  followListUserId: null,
+  openFollowList: (userId, mode) =>
+    set({ followListOpen: true, followListUserId: userId, followListMode: mode }),
+  closeFollowList: () => set({ followListOpen: false }),
+
+  sharedNoteId: null,
+  setSharedNoteId: (id) => set({ sharedNoteId: id }),
 }))

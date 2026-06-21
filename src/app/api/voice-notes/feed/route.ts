@@ -24,16 +24,14 @@ function safeNote(n: any, currentUserId?: string) {
     likedByMe: currentUserId
       ? n.likes?.some((l: any) => l.userId === currentUserId) ?? false
       : false,
+    bookmarkedByMe: currentUserId
+      ? n.bookmarks?.some((b: any) => b.userId === currentUserId) ?? false
+      : false,
     likesCount: n._count?.likes ?? 0,
     commentsCount: n._count?.comments ?? 0,
   }
 }
 
-/**
- * GET /api/voice-notes/feed
- * Returns voice notes from users the current user follows,
- * plus their own, ordered by recency.
- */
 export async function GET(req: Request) {
   const user = await getCurrentUser()
   if (!user) {
@@ -64,6 +62,7 @@ export async function GET(req: Request) {
       user: true,
       prompt: true,
       likes: { where: { userId: user.id }, select: { id: true } },
+      bookmarks: { where: { userId: user.id }, select: { id: true } },
       _count: { select: { likes: true, comments: true } },
     },
   })

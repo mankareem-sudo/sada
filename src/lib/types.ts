@@ -35,6 +35,7 @@ export interface SadaVoiceNote {
     avatarColor: string
   }
   likedByMe?: boolean
+  bookmarkedByMe?: boolean
   likesCount?: number
   commentsCount?: number
 }
@@ -43,12 +44,14 @@ export interface SadaComment {
   id: string
   content: string
   createdAt: string
+  parentId?: string | null
   user: {
     id: string
     username: string
     name: string
     avatarColor: string
   }
+  replies?: SadaComment[]
 }
 
 export interface SadaNotification {
@@ -85,6 +88,22 @@ export interface SadaProfile {
   voiceNotes: SadaVoiceNote[]
 }
 
-export type TabKey = 'today' | 'feed' | 'discover' | 'profile' | 'notifications'
+export type TabKey =
+  | 'today'
+  | 'feed'
+  | 'discover'
+  | 'trending'
+  | 'notifications'
+  | 'profile'
+  | 'bookmarks'
+  | 'admin'
 
 export type ReportReason = 'religion' | 'politics' | 'insult' | 'spam' | 'other'
+
+export interface SadaUserLight {
+  id: string
+  username: string
+  name: string
+  avatarColor: string
+  bio?: string | null
+}

@@ -1,9 +1,8 @@
 'use client'
 
-import { Mic, Bell, Search, Settings } from 'lucide-react'
+import { Mic, Bell, Search } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { Avatar } from './Avatar'
-import { useEffect, useState } from 'react'
 
 export function Header() {
   const tab = useSada((s) => s.tab)
@@ -13,11 +12,21 @@ export function Header() {
   const setSettingsOpen = useSada((s) => s.setSettingsOpen)
   const user = useSada((s) => s.user)
   const unread = useSada((s) => s.unreadNotifications)
-  const setTab2 = useSada((s) => s.setTab)
+
+  const tabLabels: Record<string, string> = {
+    today: 'سؤال اليوم',
+    feed: 'الرئيسية',
+    discover: 'اكتشف',
+    trending: 'رائج',
+    notifications: 'الإشعارات',
+    profile: 'الملف الشخصي',
+    bookmarks: 'المحفوظات',
+    admin: 'لوحة الإدارة',
+  }
 
   return (
     <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40">
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
         <button
           onClick={() => {
             setViewedUsername(null)
@@ -32,11 +41,7 @@ export function Header() {
         </button>
 
         <div className="text-xs text-muted-foreground hidden sm:block">
-          {tab === 'today' && 'سؤال اليوم'}
-          {tab === 'feed' && 'الرئيسية'}
-          {tab === 'discover' && 'اكتشف'}
-          {tab === 'notifications' && 'الإشعارات'}
-          {tab === 'profile' && 'الملف الشخصي'}
+          {tabLabels[tab] || ''}
         </div>
 
         <div className="flex items-center gap-1">
@@ -49,7 +54,7 @@ export function Header() {
           </button>
 
           <button
-            onClick={() => setTab2('notifications')}
+            onClick={() => setTab('notifications')}
             className="p-2 hover:bg-muted/60 rounded-full transition relative"
             aria-label="إشعارات"
           >

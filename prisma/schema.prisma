@@ -32,6 +32,7 @@ model User {
   likes        Like[]
   reports      Report[]
   comments     Comment[]
+  bookmarks    Bookmark[]
   donations    SupportDonation[]
   notificationsReceived Notification[] @relation("NotifRecipient")
   notificationsTriggered Notification[] @relation("NotifActor")
@@ -85,6 +86,7 @@ model VoiceNote {
   likes        Like[]
   reports      Report[]
   comments     Comment[]
+  bookmarks    Bookmark[]
 
   @@index([userId])
   @@index([promptId])
@@ -122,12 +124,30 @@ model Comment {
   userId      String
   voiceNoteId String
   content     String
+  // For threaded replies
+  parentId    String?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
   createdAt   DateTime  @default(now())
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   voiceNote   VoiceNote @relation(fields: [voiceNoteId], references: [id], onDelete: Cascade)
 
   @@index([voiceNoteId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Bookmark {
+  id          String    @id @default(cuid())
+  userId      String
+  voiceNoteId String
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voiceNote   VoiceNote @relation(fields: [voiceNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, voiceNoteId])
   @@index([userId])
 }
 

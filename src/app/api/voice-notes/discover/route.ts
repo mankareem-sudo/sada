@@ -24,15 +24,14 @@ function safeNote(n: any, currentUserId?: string) {
     likedByMe: currentUserId
       ? n.likes?.some((l: any) => l.userId === currentUserId) ?? false
       : false,
+    bookmarkedByMe: currentUserId
+      ? n.bookmarks?.some((b: any) => b.userId === currentUserId) ?? false
+      : false,
     likesCount: n._count?.likes ?? 0,
     commentsCount: n._count?.comments ?? 0,
   }
 }
 
-/**
- * GET /api/voice-notes/discover
- * Public feed of latest voice notes. Optional ?promptId=...
- */
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const limit = Math.min(Number(url.searchParams.get('limit') || 30), 80)
@@ -55,6 +54,9 @@ export async function GET(req: Request) {
       user: true,
       prompt: true,
       likes: user
+        ? { where: { userId: user.id }, select: { id: true } }
+        : false,
+      bookmarks: user
         ? { where: { userId: user.id }, select: { id: true } }
         : false,
       _count: { select: { likes: true, comments: true } },

@@ -17,7 +17,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     include: {
       prompt: true,
-      _count: { select: { likes: true } },
+      _count: { select: { likes: true, comments: true, bookmarks: true } },
     },
   })
 
@@ -27,10 +27,13 @@ export async function GET() {
       durationSec: n.durationSec,
       mimeType: n.mimeType,
       audioData: n.audioData,
+      description: n.description,
       transcript: n.transcript,
       plays: n.plays,
       createdAt: n.createdAt,
       likesCount: n._count.likes,
+      commentsCount: n._count.comments,
+      bookmarksCount: n._count.bookmarks,
       prompt: n.prompt
         ? { id: n.prompt.id, text: n.prompt.text, date: n.prompt.date }
         : null,

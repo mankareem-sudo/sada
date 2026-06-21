@@ -8,13 +8,18 @@ import { BottomNav } from '@/components/sada/BottomNav'
 import { TodayView } from '@/components/sada/TodayView'
 import { FeedView } from '@/components/sada/FeedView'
 import { DiscoverView } from '@/components/sada/DiscoverView'
+import { TrendingView } from '@/components/sada/TrendingView'
+import { BookmarksView } from '@/components/sada/BookmarksView'
 import { NotificationsView } from '@/components/sada/NotificationsView'
 import { ProfileView } from '@/components/sada/ProfileView'
+import { AdminPanel } from '@/components/sada/AdminPanel'
 import { VoiceRecorder } from '@/components/sada/VoiceRecorder'
 import { SearchModal } from '@/components/sada/SearchModal'
 import { SupportModal } from '@/components/sada/SupportModal'
 import { SettingsModal } from '@/components/sada/SettingsModal'
 import { OnboardingModal } from '@/components/sada/OnboardingModal'
+import { FollowListModal } from '@/components/sada/FollowListModal'
+import { SharedNoteModal } from '@/components/sada/SharedNoteModal'
 
 export default function Home() {
   const user = useSada((s) => s.user)
@@ -35,6 +40,7 @@ export default function Home() {
   const setSupportOpen = useSada((s) => s.setSupportOpen)
   const settingsOpen = useSada((s) => s.settingsOpen)
   const setSettingsOpen = useSada((s) => s.setSettingsOpen)
+  const setSharedNoteId = useSada((s) => s.setSharedNoteId)
 
   const [onboardingOpen, setOnboardingOpen] = useState(false)
 
@@ -61,21 +67,30 @@ export default function Home() {
       .catch(() => {})
   }, [setUser, setAuthLoading, setTodayPrompt, setUnreadNotifications])
 
+  // Check for share link on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    const shareId = url.searchParams.get('share')
+    if (shareId) {
+      setSharedNoteId(shareId)
+      // Clean URL
+      url.searchParams.delete('share')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [setSharedNoteId])
+
   // Trigger onboarding when a new user logs in but hasn't onboarded
-  // Derived from user state — no need for separate state, but for modal open/close we need it.
-  // Use a guard so we only flip to true once per session.
   const lastUserIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (user && !user.onboarded && lastUserIdRef.current !== user.id) {
       lastUserIdRef.current = user.id
-      // Defer via microtask to avoid synchronous setState in effect
       Promise.resolve().then(() => setOnboardingOpen(true))
     } else if (!user) {
       lastUserIdRef.current = null
     }
   }, [user])
 
-  // Show nothing while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -103,10 +118,17 @@ export default function Home() {
         {tab === 'today' && <TodayView />}
         {tab === 'feed' && <FeedView onOpenProfile={onOpenProfile} />}
         {tab === 'discover' && <DiscoverView onOpenProfile={onOpenProfile} />}
+        {tab === 'trending' && (
+          <TrendingView onOpenProfile={onOpenProfile} />
+        )}
+        {tab === 'bookmarks' && (
+          <BookmarksView onOpenProfile={onOpenProfile} />
+        )}
         {tab === 'notifications' && (
           <NotificationsView onOpenProfile={onOpenProfile} />
         )}
         {tab === 'profile' && <ProfileView username={viewedUsername} />}
+        {tab === 'admin' && user.isAdmin && <AdminPanel />}
       </main>
       <BottomNav />
 
@@ -136,6 +158,10 @@ export default function Home() {
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       <OnboardingModal open={onboardingOpen} onOpenChange={setOnboardingOpen} />
+
+      <FollowListModal onOpenProfile={onOpenProfile} />
+
+      <SharedNoteModal onOpenProfile={onOpenProfile} />
     </div>
   )
 }

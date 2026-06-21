@@ -27,7 +27,7 @@ export function ProfileView({ username }: { username: string | null }) {
   const setViewedUsername = useSada((s) => s.setViewedUsername)
   const setRecorderOpen = useSada((s) => s.setRecorderOpen)
   const setSettingsOpen = useSada((s) => s.setSettingsOpen)
-  const setSupportOpen = useSada((s) => s.setSupportOpen)
+  const openFollowList = useSada((s) => s.openFollowList)
 
   const [profile, setProfile] = useState<SadaProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -160,7 +160,7 @@ export function ProfileView({ username }: { username: string | null }) {
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-xs"
-                  onClick={() => setEditOpen(true)}
+                  onClick={() => setSettingsOpen(true)}
                 >
                   <Pencil className="h-3 w-3 ml-1" />
                   تعديل
@@ -187,18 +187,28 @@ export function ProfileView({ username }: { username: string | null }) {
             </div>
             <div className="text-[11px] text-muted-foreground">صدى</div>
           </div>
-          <div className="text-center p-3 rounded-xl bg-muted/30">
+          <button
+            onClick={() =>
+              openFollowList(profile.user.id, 'followers')
+            }
+            className="text-center p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition"
+          >
             <div className="font-bold text-lg tabular-nums">
               {formatCount(profile.stats.followers)}
             </div>
             <div className="text-[11px] text-muted-foreground">متابع</div>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-muted/30">
+          </button>
+          <button
+            onClick={() =>
+              openFollowList(profile.user.id, 'following')
+            }
+            className="text-center p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition"
+          >
             <div className="font-bold text-lg tabular-nums">
               {formatCount(profile.stats.following)}
             </div>
             <div className="text-[11px] text-muted-foreground">يتابع</div>
-          </div>
+          </button>
         </div>
 
         {/* Actions */}
