@@ -8,6 +8,7 @@ function safeNote(n: any, currentUserId?: string) {
     durationSec: n.durationSec,
     mimeType: n.mimeType,
     audioData: n.audioData,
+    description: n.description,
     transcript: n.transcript,
     plays: n.plays,
     createdAt: n.createdAt,
@@ -24,12 +25,13 @@ function safeNote(n: any, currentUserId?: string) {
       ? n.likes?.some((l: any) => l.userId === currentUserId) ?? false
       : false,
     likesCount: n._count?.likes ?? 0,
+    commentsCount: n._count?.comments ?? 0,
   }
 }
 
 /**
  * GET /api/voice-notes/discover
- * Public feed of latest voice notes. Optional ?promptId=... to filter.
+ * Public feed of latest voice notes. Optional ?promptId=...
  */
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -55,7 +57,7 @@ export async function GET(req: Request) {
       likes: user
         ? { where: { userId: user.id }, select: { id: true } }
         : false,
-      _count: { select: { likes: true } },
+      _count: { select: { likes: true, comments: true } },
     },
   })
 

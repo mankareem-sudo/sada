@@ -7,12 +7,15 @@ export interface SadaUser {
   bio?: string | null
   avatarColor: string
   isAdmin?: boolean
+  onboarded?: boolean
+  interests?: string | null
 }
 
 export interface SadaPrompt {
   id: string
   text: string
   date: string
+  topic?: string | null
 }
 
 export interface SadaVoiceNote {
@@ -20,6 +23,7 @@ export interface SadaVoiceNote {
   durationSec: number
   mimeType: string
   audioData: string
+  description?: string | null
   transcript?: string | null
   plays: number
   createdAt: string
@@ -32,6 +36,34 @@ export interface SadaVoiceNote {
   }
   likedByMe?: boolean
   likesCount?: number
+  commentsCount?: number
+}
+
+export interface SadaComment {
+  id: string
+  content: string
+  createdAt: string
+  user: {
+    id: string
+    username: string
+    name: string
+    avatarColor: string
+  }
+}
+
+export interface SadaNotification {
+  id: string
+  type: 'like' | 'follow' | 'comment' | 'voice_note' | 'system'
+  text: string
+  read: boolean
+  createdAt: string
+  voiceNoteId: string | null
+  actor: {
+    id: string
+    username: string
+    name: string
+    avatarColor: string
+  }
 }
 
 export interface SadaProfile {
@@ -53,6 +85,6 @@ export interface SadaProfile {
   voiceNotes: SadaVoiceNote[]
 }
 
-export type TabKey = 'today' | 'feed' | 'discover' | 'profile'
+export type TabKey = 'today' | 'feed' | 'discover' | 'profile' | 'notifications'
 
 export type ReportReason = 'religion' | 'politics' | 'insult' | 'spam' | 'other'

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Heart, Flag, MoreHorizontal, Play } from 'lucide-react'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
+import { CommentsSection } from './CommentsSection'
 import { formatDuration, timeAgo, formatCount } from '@/lib/format'
 import type { SadaVoiceNote } from '@/lib/types'
 import { toast } from 'sonner'
@@ -65,7 +66,6 @@ export function VoiceNoteCard({
         }),
       })
     } catch {
-      // revert on failure
       setLiked(!newLiked)
       setLikesCount((c) => Math.max(0, c + (newLiked ? -1 : 1)))
       toast.error('مفيش نتال، حاول مرة تانية')
@@ -146,6 +146,12 @@ export function VoiceNoteCard({
         </div>
       )}
 
+      {note.description && (
+        <p className="text-sm mb-3 whitespace-pre-wrap leading-relaxed">
+          {note.description}
+        </p>
+      )}
+
       <VoicePlayer
         src={note.audioData}
         durationSec={note.durationSec}
@@ -153,22 +159,29 @@ export function VoiceNoteCard({
       />
 
       <div className="flex items-center justify-between mt-3">
-        <button
-          onClick={toggleLike}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
-          aria-label="إعجاب"
-        >
-          <Heart
-            className={`h-4 w-4 ${liked ? 'fill-primary text-primary' : ''}`}
-          />
-          <span className="tabular-nums">{formatCount(likesCount)}</span>
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={toggleLike}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
+            aria-label="إعجاب"
+          >
+            <Heart
+              className={`h-4 w-4 ${liked ? 'fill-primary text-primary' : ''}`}
+            />
+            <span className="tabular-nums">{formatCount(likesCount)}</span>
+          </button>
 
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Play className="h-3 w-3" />
-          <span className="tabular-nums">{formatCount(note.plays)} تشغيل</span>
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Play className="h-3 w-3" />
+            <span className="tabular-nums">{formatCount(note.plays)}</span>
+          </div>
         </div>
       </div>
+
+      <CommentsSection
+        voiceNoteId={note.id}
+        initialCount={note.commentsCount ?? 0}
+      />
 
       <ReportDialog
         open={reportOpen}

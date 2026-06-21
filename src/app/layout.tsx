@@ -45,7 +45,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-};
+  userScalable: false,
+}
+
+const swScript = `
+  // SW registration disabled in dev to prevent issues
+`;
 
 export default function RootLayout({
   children,
@@ -54,6 +59,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="صدى" />
+      </head>
       <body
         className={`${cairo.variable} ${tajawal.variable} antialiased bg-background text-foreground font-tajawal`}
       >

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSada } from '@/lib/store'
 import { AuthScreen } from '@/components/sada/AuthScreen'
 import { Header } from '@/components/sada/Header'
@@ -8,14 +8,20 @@ import { BottomNav } from '@/components/sada/BottomNav'
 import { TodayView } from '@/components/sada/TodayView'
 import { FeedView } from '@/components/sada/FeedView'
 import { DiscoverView } from '@/components/sada/DiscoverView'
+import { NotificationsView } from '@/components/sada/NotificationsView'
 import { ProfileView } from '@/components/sada/ProfileView'
 import { VoiceRecorder } from '@/components/sada/VoiceRecorder'
+import { SearchModal } from '@/components/sada/SearchModal'
+import { SupportModal } from '@/components/sada/SupportModal'
+import { SettingsModal } from '@/components/sada/SettingsModal'
+import { OnboardingModal } from '@/components/sada/OnboardingModal'
 
 export default function Home() {
   const user = useSada((s) => s.user)
   const authLoading = useSada((s) => s.authLoading)
   const setUser = useSada((s) => s.setUser)
   const setAuthLoading = useSada((s) => s.setAuthLoading)
+  const setUnreadNotifications = useSada((s) => s.setUnreadNotifications)
   const tab = useSada((s) => s.tab)
   const setTab = useSada((s) => s.setTab)
   const todayPrompt = useSada((s) => s.todayPrompt)
@@ -23,6 +29,14 @@ export default function Home() {
   const recorderOpen = useSada((s) => s.recorderOpen)
   const setRecorderOpen = useSada((s) => s.setRecorderOpen)
   const viewedUsername = useSada((s) => s.viewedUsername)
+  const searchOpen = useSada((s) => s.searchOpen)
+  const setSearchOpen = useSada((s) => s.setSearchOpen)
+  const supportOpen = useSada((s) => s.supportOpen)
+  const setSupportOpen = useSada((s) => s.setSupportOpen)
+  const settingsOpen = useSada((s) => s.settingsOpen)
+  const setSettingsOpen = useSada((s) => s.setSettingsOpen)
+
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
 
   // Check auth on mount
   useEffect(() => {
@@ -31,21 +45,37 @@ export default function Home() {
       .then((d) => {
         if (d.user) {
           setUser(d.user)
+          if (typeof d.stats?.unreadNotifications === 'number') {
+            setUnreadNotifications(d.stats.unreadNotifications)
+          }
         }
       })
       .catch(() => {})
       .finally(() => setAuthLoading(false))
 
-    // Load today's prompt
     fetch('/api/prompts/today')
       .then((r) => r.json())
       .then((d) => {
         if (d.prompt) setTodayPrompt(d.prompt)
       })
       .catch(() => {})
-  }, [setUser, setAuthLoading, setTodayPrompt])
+  }, [setUser, setAuthLoading, setTodayPrompt, setUnreadNotifications])
 
-  // Show nothing while checking auth (avoids flicker)
+  // Trigger onboarding when a new user logs in but hasn't onboarded
+  // Derived from user state — no need for separate state, but for modal open/close we need it.
+  // Use a guard so we only flip to true once per session.
+  const lastUserIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (user && !user.onboarded && lastUserIdRef.current !== user.id) {
+      lastUserIdRef.current = user.id
+      // Defer via microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => setOnboardingOpen(true))
+    } else if (!user) {
+      lastUserIdRef.current = null
+    }
+  }, [user])
+
+  // Show nothing while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -57,7 +87,6 @@ export default function Home() {
     )
   }
 
-  // Not logged in → show auth screen
   if (!user) {
     return <AuthScreen />
   }
@@ -74,19 +103,20 @@ export default function Home() {
         {tab === 'today' && <TodayView />}
         {tab === 'feed' && <FeedView onOpenProfile={onOpenProfile} />}
         {tab === 'discover' && <DiscoverView onOpenProfile={onOpenProfile} />}
+        {tab === 'notifications' && (
+          <NotificationsView onOpenProfile={onOpenProfile} />
+        )}
         {tab === 'profile' && <ProfileView username={viewedUsername} />}
       </main>
       <BottomNav />
 
+      {/* Modals */}
       <VoiceRecorder
         key={recorderOpen ? 'open' : 'closed'}
         open={recorderOpen}
         onClose={() => setRecorderOpen(false)}
         onSubmitted={() => {
-          // Reload relevant data
           if (tab === 'today' || tab === 'profile') {
-            // trigger re-render via state changes inside views
-            // simplest: switch to discover or reload
             setTab(tab === 'profile' ? 'profile' : 'today')
           }
         }}
@@ -94,6 +124,18 @@ export default function Home() {
         promptDate={todayPrompt?.date}
         promptText={todayPrompt?.text}
       />
+
+      <SearchModal
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onOpenProfile={onOpenProfile}
+      />
+
+      <SupportModal open={supportOpen} onOpenChange={setSupportOpen} />
+
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      <OnboardingModal open={onboardingOpen} onOpenChange={setOnboardingOpen} />
     </div>
   )
 }

@@ -8,10 +8,11 @@ export async function GET() {
     return NextResponse.json({ user: null })
   }
 
-  const [followersCount, followingCount, voiceNotesCount] = await Promise.all([
+  const [followersCount, followingCount, voiceNotesCount, unreadNotifications] = await Promise.all([
     db.follow.count({ where: { followeeId: user.id } }),
     db.follow.count({ where: { followerId: user.id } }),
     db.voiceNote.count({ where: { userId: user.id } }),
+    db.notification.count({ where: { recipientId: user.id, read: false } }),
   ])
 
   return NextResponse.json({
@@ -23,11 +24,14 @@ export async function GET() {
       bio: user.bio,
       avatarColor: user.avatarColor,
       isAdmin: user.isAdmin,
+      onboarded: user.onboarded,
+      interests: user.interests,
     },
     stats: {
       followers: followersCount,
       following: followingCount,
       voiceNotes: voiceNotesCount,
+      unreadNotifications,
     },
   })
 }

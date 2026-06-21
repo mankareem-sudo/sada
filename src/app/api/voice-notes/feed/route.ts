@@ -8,6 +8,7 @@ function safeNote(n: any, currentUserId?: string) {
     durationSec: n.durationSec,
     mimeType: n.mimeType,
     audioData: n.audioData,
+    description: n.description,
     transcript: n.transcript,
     plays: n.plays,
     createdAt: n.createdAt,
@@ -24,13 +25,14 @@ function safeNote(n: any, currentUserId?: string) {
       ? n.likes?.some((l: any) => l.userId === currentUserId) ?? false
       : false,
     likesCount: n._count?.likes ?? 0,
+    commentsCount: n._count?.comments ?? 0,
   }
 }
 
 /**
  * GET /api/voice-notes/feed
  * Returns voice notes from users the current user follows,
- * plus their own, ordered by recency. Pagination via ?cursor=createdAt&?limit=20
+ * plus their own, ordered by recency.
  */
 export async function GET(req: Request) {
   const user = await getCurrentUser()
@@ -42,7 +44,6 @@ export async function GET(req: Request) {
   const limit = Math.min(Number(url.searchParams.get('limit') || 20), 50)
   const cursorParam = url.searchParams.get('cursor')
 
-  // Find users I follow + me
   const followingIds = await db.follow.findMany({
     where: { followerId: user.id },
     select: { followeeId: true },
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
       user: true,
       prompt: true,
       likes: { where: { userId: user.id }, select: { id: true } },
-      _count: { select: { likes: true } },
+      _count: { select: { likes: true, comments: true } },
     },
   })
 

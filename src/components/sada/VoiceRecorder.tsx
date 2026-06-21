@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { Mic, Square, Trash2, Send, X } from 'lucide-react'
 import { formatDuration } from '@/lib/format'
 import { toast } from 'sonner'
@@ -32,6 +33,7 @@ export function VoiceRecorder({
   const [audioData, setAudioData] = useState<string | null>(null)
   const [mimeType, setMimeType] = useState<string>('audio/webm')
   const [audioLevel, setAudioLevel] = useState<number[]>(new Array(20).fill(20))
+  const [description, setDescription] = useState('')
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -194,6 +196,7 @@ export function VoiceRecorder({
           durationSec: elapsed,
           promptId: promptId || undefined,
           promptDate: promptDate || undefined,
+          description: description.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -203,6 +206,7 @@ export function VoiceRecorder({
         return
       }
       toast.success('تم نشر صدى صوتك 🎙️')
+      setDescription('')
       onSubmitted()
       onClose()
     } catch (e) {
@@ -288,15 +292,29 @@ export function VoiceRecorder({
         )}
 
         {phase === 'reviewing' && audioData && (
-          <div className="flex flex-col items-center py-4 gap-5">
+          <div className="flex flex-col items-stretch py-4 gap-5">
             <audio
               ref={previewAudioRef}
               src={audioData}
               controls
               className="w-full"
             />
-            <div className="text-sm text-muted-foreground">
-              المدة: <span className="font-mono">{formatDuration(elapsed)}</span>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">
+                وصف اختياري (يساعد الناس يلاقوا صداك)
+              </label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="مثال: تجربتي الأولى مع تعلم البرمجة..."
+                rows={2}
+                maxLength={280}
+                className="resize-none text-sm"
+              />
+              <div className="text-[10px] text-muted-foreground text-left">
+                {description.length}/280
+              </div>
             </div>
 
             <div className="flex gap-3 w-full">

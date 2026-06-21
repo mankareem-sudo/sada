@@ -9,28 +9,28 @@ import { useSada } from '@/lib/store'
 import { formatCount, formatArabicDate, timeAgo } from '@/lib/format'
 import type { SadaProfile } from '@/lib/types'
 import { toast } from 'sonner'
-import { LogOut, UserPlus, UserCheck, Pencil, Trash2, Mic, Play } from 'lucide-react'
+import { UserPlus, UserCheck, Pencil, Trash2, Mic, Play } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export function ProfileView({ username }: { username: string | null }) {
   const user = useSada((s) => s.user)
   const setUser = useSada((s) => s.setUser)
   const setViewedUsername = useSada((s) => s.setViewedUsername)
   const setRecorderOpen = useSada((s) => s.setRecorderOpen)
+  const setSettingsOpen = useSada((s) => s.setSettingsOpen)
+  const setSupportOpen = useSada((s) => s.setSupportOpen)
 
   const [profile, setProfile] = useState<SadaProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editOpen, setEditOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [followBusy, setFollowBusy] = useState(false)
 
@@ -56,12 +56,6 @@ export function ProfileView({ username }: { username: string | null }) {
   useEffect(() => {
     load()
   }, [load])
-
-  const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    setUser(null)
-    toast.success('خرجت من حسابك')
-  }
 
   const toggleFollow = async () => {
     if (!profile || !user) return
@@ -218,8 +212,13 @@ export function ProfileView({ username }: { username: string | null }) {
                 <Mic className="h-4 w-4" />
                 سجّل صدى جديد
               </Button>
-              <Button variant="outline" size="icon" onClick={logout} aria-label="خروج">
-                <LogOut className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setSettingsOpen(true)}
+                aria-label="إعدادات"
+              >
+                <Pencil className="h-4 w-4" />
               </Button>
             </>
           ) : (
@@ -303,17 +302,6 @@ export function ProfileView({ username }: { username: string | null }) {
         )}
       </div>
 
-      {/* Edit profile dialog */}
-      <EditProfileDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        profile={profile}
-        onUpdated={(updated) => {
-          setProfile({ ...profile, user: { ...profile.user, ...updated.user } })
-          if (user) setUser({ ...user, ...updated.user })
-        }}
-      />
-
       {/* Delete confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
         <AlertDialogContent>
@@ -335,92 +323,5 @@ export function ProfileView({ username }: { username: string | null }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
-
-function EditProfileDialog({
-  open,
-  onOpenChange,
-  profile,
-  onUpdated,
-}: {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-  profile: SadaProfile
-  onUpdated: (u: { user: any }) => void
-}) {
-  const [name, setName] = useState(profile.user.name)
-  const [bio, setBio] = useState(profile.user.bio || '')
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    setName(profile.user.name)
-    setBio(profile.user.bio || '')
-  }, [profile, open])
-
-  const submit = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/users/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, bio }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        toast.error(data.error || 'فشل الحفظ')
-        return
-      }
-      toast.success('تم تحديث الملف')
-      onUpdated(data)
-      onOpenChange(false)
-    } catch {
-      toast.error('فشل الحفظ')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>تعديل الملف الشخصي</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-name">الاسم</Label>
-            <Input
-              id="edit-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={50}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-bio">نبذة</Label>
-            <Textarea
-              id="edit-bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              maxLength={200}
-              rows={3}
-              placeholder="اكتب نبذة قصيرة عنك..."
-            />
-            <div className="text-[11px] text-muted-foreground text-left">
-              {bio.length}/200
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            إلغاء
-          </Button>
-          <Button onClick={submit} disabled={loading}>
-            {loading ? 'جاري...' : 'حفظ'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }

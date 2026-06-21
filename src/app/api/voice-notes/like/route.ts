@@ -18,7 +18,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'missing params' }, { status: 400 })
   }
 
-  const note = await db.voiceNote.findUnique({ where: { id } })
+  const note = await db.voiceNote.findUnique({
+    where: { id },
+    select: { id: true, userId: true },
+  })
   if (!note) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
@@ -28,6 +31,19 @@ export async function POST(req: NextRequest) {
       await db.like.create({
         data: { userId: user.id, voiceNoteId: id },
       })
+      // Notify note owner (don't notify self)
+      if (note.userId !== user.id) {
+        await db.notification.create({
+          data: {
+            recipientId: note.userId,
+            actorId: user.id,
+            type: 'like',
+            voiceNoteId: id,
+            text: `أعجب ${user.name} بصداك`,
+            read: false,
+          },
+        }).catch(() => {})
+      }
     } catch {
       // already liked
     }

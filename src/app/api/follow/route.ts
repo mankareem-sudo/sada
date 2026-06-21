@@ -36,6 +36,16 @@ export async function POST(req: NextRequest) {
       await db.follow.create({
         data: { followerId: user.id, followeeId: targetUserId },
       })
+      // Notify target
+      await db.notification.create({
+        data: {
+          recipientId: targetUserId,
+          actorId: user.id,
+          type: 'follow',
+          text: `بدأ ${user.name} بمتابعتك`,
+          read: false,
+        },
+      }).catch(() => {})
     } catch {
       // already following
     }

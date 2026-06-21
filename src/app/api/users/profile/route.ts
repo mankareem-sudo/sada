@@ -22,7 +22,15 @@ export async function GET(req: NextRequest) {
       voiceNotes: {
         orderBy: { createdAt: 'desc' },
         take: 50,
-        include: { prompt: true },
+        include: {
+          prompt: true,
+          _count: {
+            select: {
+              likes: true,
+              comments: true,
+            },
+          },
+        },
       },
       _count: {
         select: {
@@ -73,8 +81,11 @@ export async function GET(req: NextRequest) {
       durationSec: n.durationSec,
       mimeType: n.mimeType,
       audioData: n.audioData,
+      description: n.description,
       transcript: n.transcript,
       plays: n.plays,
+      likesCount: n._count.likes,
+      commentsCount: n._count.comments,
       createdAt: n.createdAt,
       prompt: n.prompt
         ? { id: n.prompt.id, text: n.prompt.text, date: n.prompt.date }

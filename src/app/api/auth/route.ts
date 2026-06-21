@@ -7,6 +7,7 @@ import {
   sanitizeUsername,
 } from '@/lib/auth'
 import { ensureSeedPrompts } from '@/lib/prompts'
+import { hashPassword, verifyPassword } from '@/lib/password'
 
 const AVATAR_COLORS = [
   '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
@@ -31,9 +32,9 @@ export async function POST(req: NextRequest) {
       mode?: 'login' | 'signup'
     }
 
-    if (!email || !password) {
+    if (!email || !password || password.length < 4) {
       return NextResponse.json(
-        { error: 'البريد الإلكتروني وكلمة المرور مطلوبان' },
+        { error: 'البريد الإلكتروني وكلمة المرور (4 أحرف على الأقل) مطلوبان' },
         { status: 400 }
       )
     }
@@ -65,12 +66,14 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
+      const passwordHash = hashPassword(password)
       const user = await db.user.create({
         data: {
           email: normalizedEmail,
           name: name.trim(),
           username: cleanUsername,
           avatarColor: pickColor(cleanUsername),
+          passwordHash,
         },
       })
       const token = await createSession(user.id)
@@ -78,12 +81,20 @@ export async function POST(req: NextRequest) {
       await ensureSeedPrompts()
       return NextResponse.json({ user: safeUser(user) })
     } else {
+      // login — verify password
       const user = await db.user.findUnique({
         where: { email: normalizedEmail },
       })
-      if (!user) {
+      if (!user || !user.passwordHash) {
         return NextResponse.json(
-          { error: 'البريد الإلكتروني غير مسجل' },
+          { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
+          { status: 400 }
+        )
+      }
+      const ok = verifyPassword(password, user.passwordHash)
+      if (!ok) {
+        return NextResponse.json(
+          { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
           { status: 400 }
         )
       }
@@ -110,5 +121,7 @@ function safeUser(u: any) {
     bio: u.bio,
     avatarColor: u.avatarColor,
     isAdmin: u.isAdmin,
+    onboarded: u.onboarded,
+    interests: u.interests,
   }
 }

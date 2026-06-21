@@ -7,8 +7,10 @@ interface SadaState {
   // Auth
   user: SadaUser | null
   authLoading: boolean
+  unreadNotifications: number
   setUser: (u: SadaUser | null) => void
   setAuthLoading: (v: boolean) => void
+  setUnreadNotifications: (n: number) => void
 
   // Active tab
   tab: TabKey
@@ -29,13 +31,27 @@ interface SadaState {
   // Stats (landing)
   stats: { users: number; voiceNotes: number; prompts: number } | null
   setStats: (s: { users: number; voiceNotes: number; prompts: number } | null) => void
+
+  // Search modal
+  searchOpen: boolean
+  setSearchOpen: (v: boolean) => void
+
+  // Support modal
+  supportOpen: boolean
+  setSupportOpen: (v: boolean) => void
+
+  // Settings modal
+  settingsOpen: boolean
+  setSettingsOpen: (v: boolean) => void
 }
 
 export const useSada = create<SadaState>((set) => ({
   user: null,
   authLoading: true,
+  unreadNotifications: 0,
   setUser: (u) => set({ user: u }),
   setAuthLoading: (v) => set({ authLoading: v }),
+  setUnreadNotifications: (n) => set({ unreadNotifications: n }),
 
   tab: 'today',
   setTab: (t) => set({ tab: t }),
@@ -51,4 +67,13 @@ export const useSada = create<SadaState>((set) => ({
 
   stats: null,
   setStats: (s) => set({ stats: s }),
+
+  searchOpen: false,
+  setSearchOpen: (v) => set({ searchOpen: v }),
+
+  supportOpen: false,
+  setSupportOpen: (v) => set({ supportOpen: v }),
+
+  settingsOpen: false,
+  setSettingsOpen: (v) => set({ settingsOpen: v }),
 }))

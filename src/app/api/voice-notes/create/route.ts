@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { getTodayPrompt, ensureSeedPrompts } from '@/lib/prompts'
 
-const MAX_DURATION = 90 // seconds
+const MAX_DURATION = 90
 const MIN_DURATION = 1
 
 export async function POST(req: NextRequest) {
@@ -14,12 +14,20 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { audioData, mimeType, durationSec, promptId, promptDate } = body as {
+    const {
+      audioData,
+      mimeType,
+      durationSec,
+      promptId,
+      promptDate,
+      description,
+    } = body as {
       audioData?: string
       mimeType?: string
       durationSec?: number
       promptId?: string
       promptDate?: string
+      description?: string
     }
 
     if (!audioData || !audioData.startsWith('data:audio')) {
@@ -50,7 +58,6 @@ export async function POST(req: NextRequest) {
       if (today) finalPromptId = today.id
     }
 
-    // Validate the audio data isn't absurdly large (max 5MB after base64)
     if (audioData.length > 7_000_000) {
       return NextResponse.json(
         { error: 'حجم التسجيل كبير جداً، حاول مرة تانية' },
@@ -65,8 +72,30 @@ export async function POST(req: NextRequest) {
         audioData,
         mimeType: mimeType || 'audio/webm',
         durationSec: dur,
+        description:
+          typeof description === 'string' && description.trim()
+            ? description.trim().slice(0, 280)
+            : null,
       },
     })
+
+    // Send notifications to followers
+    const followers = await db.follow.findMany({
+      where: { followeeId: user.id },
+      select: { followerId: true },
+    })
+    if (followers.length > 0) {
+      await db.notification.createMany({
+        data: followers.map((f) => ({
+          recipientId: f.followerId,
+          actorId: user.id,
+          type: 'voice_note',
+          voiceNoteId: note.id,
+          text: `نشر ${user.name} صدى جديد`,
+          read: false,
+        })),
+      })
+    }
 
     return NextResponse.json({
       id: note.id,
