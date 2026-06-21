@@ -1,11 +1,14 @@
 // Sada (صدى) — Voice-based Arabic social platform
-// Prisma schema
+// Prisma schema — Production-ready
+// For production with PostgreSQL: change provider to "postgresql"
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
+  // Use "postgresql" for production
+  // Use "sqlite" for local dev
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }

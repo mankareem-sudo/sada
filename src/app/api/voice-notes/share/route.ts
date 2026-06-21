@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
 
   const note = await db.voiceNote.findUnique({
     where: { id },
-    select: { id: true, user: { select: { username: true } } },
+    select: {
+      id: true,
+      user: { select: { username: true, name: true } },
+    },
   })
   if (!note) {
     return NextResponse.json({ error: 'غير موجود' }, { status: 404 })

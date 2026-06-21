@@ -1,0 +1,80 @@
+# Sada — Docker Compose for Production
+# Usage:
+#   1. Copy .env.example to .env and fill in real values
+#   2. docker-compose up -d
+#   3. Run migrations: docker-compose exec app npx prisma db push
+
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sada}
+      POSTGRES_USER: ${POSTGRES_USER:-sada}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sada}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Sada web app
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database URL points to the `db` service
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sada}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sada}?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Sada}
+      - NEXT_PUBLIC_APP_NAME_AR=${NEXT_PUBLIC_APP_NAME_AR:-صدى}
+      - NEXT_PUBLIC_DEVELOPER=${NEXT_PUBLIC_DEVELOPER:-Sada Team}
+      - NEXT_PUBLIC_SUPPORT_EMAIL=${NEXT_PUBLIC_SUPPORT_EMAIL:-support@sada.app}
+      # Cloudflare R2 (optional)
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY=${R2_ACCESS_KEY:-}
+      - R2_SECRET_KEY=${R2_SECRET_KEY:-}
+      - R2_BUCKET=${R2_BUCKET:-sada-audio}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./prisma:/app/prisma
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Caddy reverse proxy (auto HTTPS)
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

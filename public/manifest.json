@@ -1,6 +1,6 @@
 {
   "name": "صدى — منصة الحوار الصوتي العربي",
-  "short_name": "صدى",
+  "short_name": "Sada",
   "description": "منصة اجتماعية صوتية عربية. كل يوم سؤال واحد، وإجابات صوتية مدتها 90 ثانية. منصة للحوار الهادئ بعيداً عن السخرية والإساءة.",
   "lang": "ar",
   "dir": "rtl",
@@ -10,6 +10,10 @@
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",
   "categories": ["social", "music", "lifestyle"],
+  "developer": {
+    "name": "Sada Team",
+    "url": "https://sada.app"
+  },
   "icons": [
     {
       "src": "/icon-192.png",

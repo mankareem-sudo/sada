@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sada</string>
+    <string name="title_activity_main">Sada</string>
+    <string name="package_name">app.sada.voice</string>
+    <string name="custom_url_scheme">app.sada.voice</string>
+    <string name="developer_name">Sada Team</string>
+    <string name="app_description">منصة الحوار الصوتي العربي</string>
+</resources>
