@@ -1,25 +1,22 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-// For production: set this to your deployed server URL
-// For local dev: use http://10.0.2.2:3000 (Android emulator) or http://192.168.x.x:3000 (real device)
-const SERVER_URL = process.env.SADA_SERVER_URL || 'http://10.0.2.2:3000';
+// Production server URL — Sada deployed on Vercel
+const SERVER_URL = process.env.SADA_SERVER_URL || 'https://my-project-one-lake-82.vercel.app';
 
 const config: CapacitorConfig = {
   appId: 'app.sada.voice',
   appName: 'Sada',
-  // For server-based: use server.url
-  // For bundled offline: use webDir: './out'
   webDir: 'out',
   server: {
     url: SERVER_URL,
-    cleartext: true,
-    androidScheme: 'http',
+    cleartext: false,
+    androidScheme: 'https',
   },
   android: {
     backgroundColor: '#0a0a0f',
-    allowMixedContent: true,
+    allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: false,
   },
   plugins: {
     SplashScreen: {
@@ -44,3 +41,4 @@ const config: CapacitorConfig = {
 };
 
 export default config;
+
