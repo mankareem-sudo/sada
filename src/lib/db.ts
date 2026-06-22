@@ -286,6 +286,8 @@ function buildSelect(select: SelectClause | undefined, include: IncludeClause | 
     const cols = ['*']
     for (const [key, val] of Object.entries(include)) {
       if (val) {
+        // Skip _count - handled separately
+        if (key === '_count') continue
         const tableName = relationToTable[key] || key
         cols.push(`${tableName}(*)`)
       }
@@ -295,11 +297,95 @@ function buildSelect(select: SelectClause | undefined, include: IncludeClause | 
   return '*'
 }
 
+// Helper: count related records for a list of parent records
+async function fetchCounts(
+  parentTable: string,
+  parentIds: string[],
+  countConfig: Record<string, boolean>,
+  fkColumnMap: Record<string, string>
+): Promise<Record<string, Record<string, number>>> {
+  const result: Record<string, Record<string, number>> = {}
+  if (parentIds.length === 0 || !countConfig) return result
+  
+  for (const [relationName, enabled] of Object.entries(countConfig)) {
+    if (!enabled) continue
+    const fkCol = fkColumnMap[relationName]
+    if (!fkCol) continue
+    
+    const relatedTableMap: Record<string, string> = {
+      likes: 'Like',
+      comments: 'Comment',
+      bookmarks: 'Bookmark',
+      reports: 'Report',
+      voiceNotes: 'VoiceNote',
+      replies: 'Comment',
+      followers: 'Follow',
+      following: 'Follow',
+      sessions: 'Session',
+      prompts: 'Prompt',
+      donations: 'SupportDonation',
+    }
+    const relatedTable = relatedTableMap[relationName]
+    if (!relatedTable) continue
+    
+    const { data, error } = await supabase
+      .from(relatedTable)
+      .select(fkCol)
+      .in(fkCol, parentIds)
+    
+    if (error) continue
+    
+    const counts: Record<string, number> = {}
+    for (const row of data || []) {
+      const parentId = row[fkCol]
+      if (parentId) {
+        counts[parentId] = (counts[parentId] || 0) + 1
+      }
+    }
+    
+    for (const parentId of parentIds) {
+      if (!result[parentId]) result[parentId] = {}
+      result[parentId][relationName] = counts[parentId] || 0
+    }
+  }
+  
+  return result
+}
+
 // Handle include (relations) by fetching separately if needed
 async function applyIncludePostFetch(table: string, records: any[], include: IncludeClause | undefined) {
   if (!include || records.length === 0) return records
   
-  // Relations mapping
+  // Handle _count specially
+  const countConfig = include._count as any
+  if (countConfig && typeof countConfig === 'object' && countConfig.select) {
+    const parentIds = records.map((r) => r.id).filter(Boolean)
+    
+    // Map relation name to FK column
+    const fkColumnMap: Record<string, string> = {
+      likes: 'voiceNoteId',
+      comments: 'voiceNoteId',
+      bookmarks: 'voiceNoteId',
+      reports: 'voiceNoteId',
+      voiceNotes: 'userId',
+      replies: 'parentId',
+      followers: 'followeeId',
+      following: 'followerId',
+      sessions: 'userId',
+      prompts: 'promptId',  // not really
+      donations: 'userId',
+    }
+    
+    const counts = await fetchCounts(table, parentIds, countConfig.select, fkColumnMap)
+    
+    for (const record of records) {
+      if (record.id) {
+        record._count = counts[record.id] || {}
+      }
+    }
+  }
+  
+  // Relations mapping for actual includes (not _count)
   const relationConfig: Record<string, { fk: string; table: string; isList: boolean }> = {
     user: { fk: 'userId', table: 'User', isList: false },
     actor: { fk: 'actorId', table: 'User', isList: false },
@@ -326,7 +412,7 @@ async function applyIncludePostFetch(table: string, records: any[], include: Inc
   }
   
   for (const [relName, includeVal] of Object.entries(include)) {
-    if (!includeVal) continue
+    if (!includeVal || relName === '_count') continue
     const config = relationConfig[relName]
     if (!config) continue
     
