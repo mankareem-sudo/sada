@@ -253,14 +253,42 @@ function applyOrderBy(query: any, orderBy: OrderByClause | undefined): any {
 }
 
 // Convert Prisma select clause to Supabase select format
-function buildSelect(select: SelectClause | undefined, include: IncludeClause | undefined): string {
+function buildSelect(select: SelectClause | undefined, include: IncludeClause | undefined, tableName?: string): string {
   if (select) {
     return Object.keys(select).filter((k) => select[k]).join(',')
   }
   if (include) {
+    // Map relation names to their actual table names (PostgREST is case-sensitive)
+    const relationToTable: Record<string, string> = {
+      user: 'User',
+      actor: 'User',
+      recipient: 'User',
+      follower: 'User',
+      followee: 'User',
+      reporter: 'User',
+      voiceNote: 'VoiceNote',
+      voiceNotes: 'VoiceNote',
+      prompt: 'Prompt',
+      prompts: 'Prompt',
+      likes: 'Like',
+      reports: 'Report',
+      comments: 'Comment',
+      bookmarks: 'Bookmark',
+      replies: 'Comment',
+      parent: 'Comment',
+      sessions: 'Session',
+      followers: 'Follow',
+      following: 'Follow',
+      donations: 'SupportDonation',
+      notificationsReceived: 'Notification',
+      notificationsTriggered: 'Notification',
+    }
     const cols = ['*']
     for (const [key, val] of Object.entries(include)) {
-      if (val) cols.push(`${key}(*)`)
+      if (val) {
+        const tableName = relationToTable[key] || key
+        cols.push(`${tableName}(*)`)
+      }
     }
     return cols.join(',')
   }
