@@ -14,11 +14,13 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
 
-if (!supabaseUrl || !serviceRoleKey) {
-  console.warn('[db] Warning: Supabase env vars not set')
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[db] Warning: Supabase env vars not set')
+  }
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -284,7 +286,8 @@ async function applyIncludePostFetch(table: string, records: any[], include: Inc
 }
 
 // ===== Table handler factory =====
-function createTableHandler(tableName: string) {
+// Returns `any` types to avoid TypeScript friction with Prisma-style queries
+function createTableHandler(tableName: string): any {
   return {
     async findUnique(args: FindUniqueArgs) {
       let query = supabase.from(tableName).select(buildSelect(args.select, args.include))

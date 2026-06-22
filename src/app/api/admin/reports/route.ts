@@ -20,27 +20,26 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
     take: 200,
     include: {
-      reporter: {
-        select: { id: true, name: true, username: true, avatarColor: true },
-      },
-      voiceNote: {
-        include: {
-          user: {
-            select: { id: true, name: true, username: true, avatarColor: true },
-          },
-        },
-      },
+      reporter: true,
+      voiceNote: { include: { user: true } },
     },
   })
 
   return NextResponse.json({
-    reports: reports.map((r) => ({
+    reports: reports.map((r: any) => ({
       id: r.id,
       reason: r.reason,
       comment: r.comment,
       status: r.status,
       createdAt: r.createdAt,
-      reporter: r.reporter,
+      reporter: r.reporter
+        ? {
+            id: r.reporter.id,
+            name: r.reporter.name,
+            username: r.reporter.username,
+            avatarColor: r.reporter.avatarColor,
+          }
+        : null,
       voiceNote: r.voiceNote
         ? {
             id: r.voiceNote.id,
@@ -48,7 +47,14 @@ export async function GET(req: NextRequest) {
             audioData: r.voiceNote.audioData,
             description: r.voiceNote.description,
             createdAt: r.voiceNote.createdAt,
-            user: r.voiceNote.user,
+            user: r.voiceNote.user
+              ? {
+                  id: r.voiceNote.user.id,
+                  name: r.voiceNote.user.name,
+                  username: r.voiceNote.user.username,
+                  avatarColor: r.voiceNote.user.avatarColor,
+                }
+              : null,
           }
         : null,
     })),
@@ -78,16 +84,15 @@ export async function PATCH(req: NextRequest) {
 
   const report = await db.report.findUnique({
     where: { id },
-    include: { voiceNote: true },
-  })
+  }) as any
   if (!report) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
 
   await db.report.update({ where: { id }, data: { status } })
 
-  if (status === 'removed' && report.voiceNote) {
-    await db.voiceNote.delete({ where: { id: report.voiceNoteId! } })
+  if (status === 'removed' && report.voiceNoteId) {
+    await db.voiceNote.delete({ where: { id: report.voiceNoteId } })
   }
 
   return NextResponse.json({ ok: true })

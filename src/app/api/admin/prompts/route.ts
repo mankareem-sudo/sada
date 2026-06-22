@@ -14,18 +14,30 @@ export async function GET() {
 
   const prompts = await db.prompt.findMany({
     orderBy: { date: 'desc' },
-    include: {
-      _count: { select: { voiceNotes: true } },
-    },
   })
 
+  // Get voiceNote counts separately for each prompt
+  const promptIds = prompts.map((p: any) => p.id)
+  let voiceNoteCounts: Record<string, number> = {}
+  if (promptIds.length > 0) {
+    const voiceNotes = await db.voiceNote.findMany({
+      where: { promptId: { in: promptIds } },
+      select: { promptId: true },
+    })
+    for (const vn of voiceNotes as any[]) {
+      if (vn.promptId) {
+        voiceNoteCounts[vn.promptId] = (voiceNoteCounts[vn.promptId] || 0) + 1
+      }
+    }
+  }
+
   return NextResponse.json({
-    prompts: prompts.map((p) => ({
+    prompts: prompts.map((p: any) => ({
       id: p.id,
       text: p.text,
       date: p.date,
       topic: p.topic,
-      voiceNotesCount: p._count.voiceNotes,
+      voiceNotesCount: voiceNoteCounts[p.id] || 0,
     })),
   })
 }
