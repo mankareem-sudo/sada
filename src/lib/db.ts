@@ -164,16 +164,20 @@ function buildFilter(where: WhereClause | undefined): Record<string, any> {
         filter[`${key}`] = `ilike.%${ops.endsWith}`
       }
       if (ops.gt !== undefined) {
-        filter[`${key}`] = `gt.${ops.gt}`
+        const v = ops.gt instanceof Date ? ops.gt.toISOString() : ops.gt
+        filter[`${key}`] = `gt.${v}`
       }
       if (ops.gte !== undefined) {
-        filter[`${key}`] = `gte.${ops.gte}`
+        const v = ops.gte instanceof Date ? ops.gte.toISOString() : ops.gte
+        filter[`${key}`] = `gte.${v}`
       }
       if (ops.lt !== undefined) {
-        filter[`${key}`] = `lt.${ops.lt}`
+        const v = ops.lt instanceof Date ? ops.lt.toISOString() : ops.lt
+        filter[`${key}`] = `lt.${v}`
       }
       if (ops.lte !== undefined) {
-        filter[`${key}`] = `lte.${ops.lte}`
+        const v = ops.lte instanceof Date ? ops.lte.toISOString() : ops.lte
+        filter[`${key}`] = `lte.${v}`
       }
     } else {
       // Direct equality
