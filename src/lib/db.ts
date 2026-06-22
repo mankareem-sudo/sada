@@ -470,8 +470,8 @@ function createTableHandler(tableName: string): any {
       // Build filter from where
       const filter = buildFilter(args.where)
       // Auto-update updatedAt if applicable
-      const data = { ...args.data }
-      if (!data.updatedAt) data.updatedAt = new Date().toISOString()
+      const updateData = { ...args.data }
+      if (!updateData.updatedAt) updateData.updatedAt = new Date().toISOString()
       
       // First find the record to update (for unique constraint)
       const { data: existing, error: findErr } = await supabase
@@ -485,17 +485,17 @@ function createTableHandler(tableName: string): any {
         throw new Error(`[db.${tableName}.update] Record not found`)
       }
       
-      const { data, error } = await supabase
+      const { data: updatedRecord, error } = await supabase
         .from(tableName)
-        .update(data)
+        .update(updateData)
         .match(filter)
         .select()
         .single()
       if (error) throw new Error(`[db.${tableName}.update] ${error.message}`)
-      if (args.include && data) {
-        await applyIncludePostFetch(tableName, [data], args.include)
+      if (args.include && updatedRecord) {
+        await applyIncludePostFetch(tableName, [updatedRecord], args.include)
       }
-      return data
+      return updatedRecord
     },
     
     async updateMany(args: UpdateManyArgs) {
