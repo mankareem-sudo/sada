@@ -174,9 +174,18 @@ function applyFilter(query: any, filter: Record<string, any>): any {
         for (const [k, v] of Object.entries(f)) {
           if (v === null) {
             orStrings.push(`${k}.is.null`)
-          } else if (typeof v === 'string' && v.includes('.')) {
+          } else if (typeof v === 'string' && (
+            v.startsWith('ilike.') || v.startsWith('in.') ||
+            v.startsWith('gt.') || v.startsWith('lt.') ||
+            v.startsWith('gte.') || v.startsWith('lte.')
+          )) {
+            // It's already an operator string
             orStrings.push(`${k}.${v}`)
+          } else if (Array.isArray(v)) {
+            // IN clause: col.in.(val1,val2)
+            orStrings.push(`${k}.in.(${v.map((x) => String(x)).join(',')})`)
           } else {
+            // Plain equality
             orStrings.push(`${k}.eq.${v}`)
           }
         }
