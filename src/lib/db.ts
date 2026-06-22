@@ -365,20 +365,25 @@ function createTableHandler(tableName: string): any {
       return { count: data?.length || 0 }
     },
     
-    async upsert(args: CreateArgs & { where?: Record<string, any> }) {
-      // Try insert first, fall back to update if conflict
+    async upsert(args: any) {
+      // Prisma upsert syntax: { where: {...}, create: {...}, update: {...} }
+      const where = args.where || {}
+      const createData = args.create || args.data || {}
+      const updateData = args.update || args.data || {}
+      
+      // Try to find existing record
       const { data: existing } = await supabase
         .from(tableName)
-        .select('id')
-        .match(args.where || {})
+        .select('*')
+        .match(where)
         .limit(1)
       
       if (existing && existing.length > 0) {
         // Update existing
         const { data, error } = await supabase
           .from(tableName)
-          .update(args.data)
-          .match(args.where || {})
+          .update(updateData)
+          .match(where)
           .select()
           .single()
         if (error) throw new Error(`[db.${tableName}.upsert.update] ${error.message}`)
@@ -390,26 +395,10 @@ function createTableHandler(tableName: string): any {
         // Insert new
         const { data, error } = await supabase
           .from(tableName)
-          .insert(args.data)
+          .insert(createData)
           .select()
           .single()
-        if (error) {
-          // If unique constraint violation, try update
-          if (error.message.includes('duplicate') || error.message.includes('unique')) {
-            const { data: updated, error: updErr } = await supabase
-              .from(tableName)
-              .update(args.data)
-              .match(args.where || {})
-              .select()
-              .single()
-            if (updErr) throw new Error(`[db.${tableName}.upsert.fallback] ${updErr.message}`)
-            if (args.include && updated) {
-              await applyIncludePostFetch(tableName, [updated], args.include)
-            }
-            return updated
-          }
-          throw new Error(`[db.${tableName}.upsert.insert] ${error.message}`)
-        }
+        if (error) throw new Error(`[db.${tableName}.upsert.insert] ${error.message}`)
         if (args.include && data) {
           await applyIncludePostFetch(tableName, [data], args.include)
         }
