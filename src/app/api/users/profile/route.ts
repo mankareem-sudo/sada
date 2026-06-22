@@ -18,43 +18,75 @@ export async function GET(req: NextRequest) {
 
   const target = await db.user.findFirst({
     where: username ? { username: username.toLowerCase() } : { id: userId! },
-    include: {
-      voiceNotes: {
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        include: {
-          prompt: true,
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          followers: true,
-          following: true,
-          voiceNotes: true,
-        },
-      },
-    },
-  })
+  }) as any
 
   if (!target) {
     return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 })
   }
 
+  // Fetch related data in parallel
+  const [voiceNotes, followersCount, followingCount, voiceNotesCount] = await Promise.all([
+    db.voiceNote.findMany({
+      where: { userId: target.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+    db.follow.count({ where: { followeeId: target.id } }),
+    db.follow.count({ where: { followerId: target.id } }),
+    db.voiceNote.count({ where: { userId: target.id } }),
+  ])
+
+  // Get likes + comments counts for each voice note
+  const voiceNoteIds = (voiceNotes as any[]).map((n) => n.id)
+  let likesCounts: Record<string, number> = {}
+  let commentsCounts: Record<string, number> = {}
+  let promptsMap: Record<string, any> = {}
+  
+  if (voiceNoteIds.length > 0) {
+    const [allLikes, allComments, allVoiceNotesWithPrompts] = await Promise.all([
+      db.like.findMany({
+        where: { voiceNoteId: { in: voiceNoteIds } },
+        select: { voiceNoteId: true },
+      }),
+      db.comment.findMany({
+        where: { voiceNoteId: { in: voiceNoteIds } },
+        select: { voiceNoteId: true },
+      }),
+      db.voiceNote.findMany({
+        where: { id: { in: voiceNoteIds } },
+        select: { id: true, promptId: true },
+      }),
+    ])
+    
+    for (const l of allLikes as any[]) {
+      likesCounts[l.voiceNoteId] = (likesCounts[l.voiceNoteId] || 0) + 1
+    }
+    for (const c of allComments as any[]) {
+      commentsCounts[c.voiceNoteId] = (commentsCounts[c.voiceNoteId] || 0) + 1
+    }
+    
+    // Fetch prompts separately
+    const promptIds = (allVoiceNotesWithPrompts as any[])
+      .map((vn) => vn.promptId)
+      .filter(Boolean)
+    const uniquePromptIds = [...new Set(promptIds)]
+    if (uniquePromptIds.length > 0) {
+      const prompts = await db.prompt.findMany({
+        where: { id: { in: uniquePromptIds } },
+      })
+      for (const p of prompts as any[]) {
+        promptsMap[p.id] = p
+      }
+    }
+  }
+
   const currentUser = await getCurrentUser()
   let isFollowing = false
   if (currentUser && currentUser.id !== target.id) {
-    const f = await db.follow.findUnique({
+    const f = await db.follow.findFirst({
       where: {
-        followerId_followeeId: {
-          followerId: currentUser.id,
-          followeeId: target.id,
-        },
+        followerId: currentUser.id,
+        followeeId: target.id,
       },
     })
     isFollowing = !!f
@@ -70,13 +102,13 @@ export async function GET(req: NextRequest) {
       createdAt: target.createdAt,
     },
     stats: {
-      followers: target._count.followers,
-      following: target._count.following,
-      voiceNotes: target._count.voiceNotes,
+      followers: followersCount,
+      following: followingCount,
+      voiceNotes: voiceNotesCount,
     },
     isFollowing,
     isMe: currentUser?.id === target.id,
-    voiceNotes: target.voiceNotes.map((n) => ({
+    voiceNotes: (voiceNotes as any[]).map((n) => ({
       id: n.id,
       durationSec: n.durationSec,
       mimeType: n.mimeType,
@@ -84,11 +116,15 @@ export async function GET(req: NextRequest) {
       description: n.description,
       transcript: n.transcript,
       plays: n.plays,
-      likesCount: n._count.likes,
-      commentsCount: n._count.comments,
+      likesCount: likesCounts[n.id] || 0,
+      commentsCount: commentsCounts[n.id] || 0,
       createdAt: n.createdAt,
-      prompt: n.prompt
-        ? { id: n.prompt.id, text: n.prompt.text, date: n.prompt.date }
+      prompt: n.promptId
+        ? {
+            id: promptsMap[n.promptId]?.id,
+            text: promptsMap[n.promptId]?.text,
+            date: promptsMap[n.promptId]?.date,
+          }
         : null,
     })),
   })
