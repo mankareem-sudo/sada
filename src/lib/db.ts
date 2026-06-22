@@ -28,6 +28,26 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   global: { headers: { 'X-Client-Info': 'sada-server/1.0.0' } },
 })
 
+// ===== Helpers =====
+
+// Generate a cuid-like ID (24 chars, starts with 'c')
+export function generateId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let id = ''
+  for (let i = 0; i < 24; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return 'c' + id
+}
+
+export function now(): string {
+  return new Date().toISOString()
+}
+
+export function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+}
+
 // ===== Types =====
 type WhereClause = Record<string, any>
 type SelectClause = Record<string, boolean>
@@ -364,20 +384,36 @@ function createTableHandler(tableName: string): any {
     },
     
     async create(args: CreateArgs) {
-      const { data, error } = await supabase
+      // Auto-generate id if not provided (Prisma's @default(cuid()) behavior)
+      const data = { ...args.data }
+      if (!data.id) {
+        data.id = generateId()
+      }
+      // Auto-set createdAt/updatedAt if not provided
+      const nowIso = new Date().toISOString()
+      if (!data.createdAt) data.createdAt = nowIso
+      if (!data.updatedAt) data.updatedAt = nowIso
+      const { data: result, error } = await supabase
         .from(tableName)
-        .insert(args.data)
+        .insert(data)
         .select()
         .single()
       if (error) throw new Error(`[db.${tableName}.create] ${error.message}`)
-      if (args.include && data) {
-        await applyIncludePostFetch(tableName, [data], args.include)
+      if (args.include && result) {
+        await applyIncludePostFetch(tableName, [result], args.include)
       }
-      return data
+      return result
     },
     
     async createMany(args: CreateManyArgs) {
-      const dataArray = Array.isArray(args.data) ? args.data : [args.data]
+      const dataArrayRaw = Array.isArray(args.data) ? args.data : [args.data]
+      // Auto-generate id for each
+      const dataArray = dataArrayRaw.map((d: any) => {
+        if (!d.id) {
+          return { ...d, id: generateId() }
+        }
+        return d
+      })
       const { data, error } = await supabase
         .from(tableName)
         .insert(dataArray)
@@ -389,7 +425,10 @@ function createTableHandler(tableName: string): any {
     async upsert(args: any) {
       // Prisma upsert syntax: { where: {...}, create: {...}, update: {...} }
       const where = args.where || {}
-      const createData = args.create || args.data || {}
+      const createData = { ...(args.create || args.data || {}) }
+      if (!createData.id) {
+        createData.id = generateId()
+      }
       const updateData = args.update || args.data || {}
       
       // Try to find existing record
@@ -430,6 +469,9 @@ function createTableHandler(tableName: string): any {
     async update(args: UpdateArgs) {
       // Build filter from where
       const filter = buildFilter(args.where)
+      // Auto-update updatedAt if applicable
+      const data = { ...args.data }
+      if (!data.updatedAt) data.updatedAt = new Date().toISOString()
       
       // First find the record to update (for unique constraint)
       const { data: existing, error: findErr } = await supabase
@@ -445,7 +487,7 @@ function createTableHandler(tableName: string): any {
       
       const { data, error } = await supabase
         .from(tableName)
-        .update(args.data)
+        .update(data)
         .match(filter)
         .select()
         .single()
@@ -611,20 +653,3 @@ export const db = {
 // Re-export supabase client for direct use if needed
 export { supabase }
 
-// Export helpers
-export function generateId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let id = ''
-  for (let i = 0; i < 24; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return 'c' + id
-}
-
-export function now(): string {
-  return new Date().toISOString()
-}
-
-export function daysFromNow(days: number): string {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
-}
