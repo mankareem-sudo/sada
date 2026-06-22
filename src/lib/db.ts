@@ -131,7 +131,8 @@ function buildFilter(where: WhereClause | undefined): Record<string, any> {
         filter[key] = ops.equals
       }
       if (ops.in && Array.isArray(ops.in)) {
-        filter[`${key}`] = `in.(${ops.in.map((v) => String(v)).join(',')})`
+        // Mark for special handling - will be set as array
+        filter[`${key}`] = ops.in  // array value triggers query.in() in applyFilter
       }
       if (ops.contains !== undefined) {
         filter[`${key}`] = `ilike.%${ops.contains}%`
@@ -168,14 +169,21 @@ function applyFilter(query: any, filter: Record<string, any>): any {
   for (const [key, value] of Object.entries(filter)) {
     if (key === '_or' && Array.isArray(value)) {
       // Supabase or() syntax: query.or('col1.eq.val1,col2.eq.val2')
-      const orStrings = value.map((f: Record<string, any>) => {
-        return Object.entries(f).map(([k, v]) => {
-          if (v === null) return `${k}.is.null`
-          if (typeof v === 'string' && v.includes('.')) return `${k}.${v}`
-          return `${k}.eq.${v}`
-        }).join(',')
-      })
-      query = query.or(orStrings.join(','))
+      const orStrings: string[] = []
+      for (const f of value) {
+        for (const [k, v] of Object.entries(f)) {
+          if (v === null) {
+            orStrings.push(`${k}.is.null`)
+          } else if (typeof v === 'string' && v.includes('.')) {
+            orStrings.push(`${k}.${v}`)
+          } else {
+            orStrings.push(`${k}.eq.${v}`)
+          }
+        }
+      }
+      if (orStrings.length > 0) {
+        query = query.or(orStrings.join(','))
+      }
     } else if (value === null) {
       query = query.is(key, null)
     } else if (typeof value === 'string' && (
@@ -184,7 +192,8 @@ function applyFilter(query: any, filter: Record<string, any>): any {
       value.startsWith('gte.') || value.startsWith('lte.') ||
       value.startsWith('eq.')
     )) {
-      const [op, val] = value.split('.')
+      const [op, ...rest] = value.split('.')
+      const val = rest.join('.')
       if (op === 'ilike') query = query.ilike(key, val)
       else if (op === 'in') query = query.in(key, val.replace(/^\(/, '').replace(/\)$/, '').split(','))
       else if (op === 'gt') query = query.gt(key, val)
@@ -192,6 +201,9 @@ function applyFilter(query: any, filter: Record<string, any>): any {
       else if (op === 'gte') query = query.gte(key, val)
       else if (op === 'lte') query = query.lte(key, val)
       else if (op === 'eq') query = query.eq(key, val)
+    } else if (Array.isArray(value)) {
+      // Array value = IN clause
+      query = query.in(key, value)
     } else {
       query = query.eq(key, value)
     }
