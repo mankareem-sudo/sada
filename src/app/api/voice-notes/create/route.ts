@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, validateAudioData, sanitizeText } from '@/lib/auth'
 import { getTodayPrompt, ensureSeedPrompts } from '@/lib/prompts'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const MAX_DURATION = 90
 const MIN_DURATION = 1
@@ -11,6 +12,12 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
+    }
+
+    // Rate limit: 10 voice notes per hour per user
+    const rateCheck = checkRateLimit(req, 'voiceNoteCreate', user.id)
+    if (!rateCheck.allowed && rateCheck.response) {
+      return rateCheck.response
     }
 
     const body = await req.json()
@@ -30,13 +37,16 @@ export async function POST(req: NextRequest) {
       description?: string
     }
 
-    if (!audioData || !audioData.startsWith('data:audio')) {
+    // Validate audio data
+    const audioCheck = validateAudioData(audioData || '')
+    if (!audioCheck.valid) {
       return NextResponse.json(
-        { error: 'تسجيل صوتي غير صالح' },
+        { error: audioCheck.reason || 'تسجيل صوتي غير صالح' },
         { status: 400 }
       )
     }
 
+    // Validate duration
     const dur = Math.floor(Number(durationSec) || 0)
     if (dur < MIN_DURATION || dur > MAX_DURATION) {
       return NextResponse.json(
@@ -44,6 +54,20 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Validate duration matches audio data size (basic sanity check)
+    // At typical bitrates, 90s of audio is roughly 500KB-2MB
+    const audioSizeBytes = Math.ceil((audioData!.split(',')[1] || '').length * 3 / 4)
+    if (dur > 5 && audioSizeBytes < dur * 1000) {
+      // Suspicious: duration claims to be > 5s but file is too small
+      return NextResponse.json(
+        { error: 'بيانات التسجيل غير متطابقة' },
+        { status: 400 }
+      )
+    }
+
+    // Sanitize description
+    const cleanDescription = description ? sanitizeText(description, 280) : null
 
     await ensureSeedPrompts()
 
@@ -58,13 +82,6 @@ export async function POST(req: NextRequest) {
       if (today) finalPromptId = today.id
     }
 
-    if (audioData.length > 7_000_000) {
-      return NextResponse.json(
-        { error: 'حجم التسجيل كبير جداً، حاول مرة تانية' },
-        { status: 400 }
-      )
-    }
-
     const note = await db.voiceNote.create({
       data: {
         promptId: finalPromptId,
@@ -72,17 +89,15 @@ export async function POST(req: NextRequest) {
         audioData,
         mimeType: mimeType || 'audio/webm',
         durationSec: dur,
-        description:
-          typeof description === 'string' && description.trim()
-            ? description.trim().slice(0, 280)
-            : null,
+        description: cleanDescription,
       },
     })
 
-    // Send notifications to followers
+    // Send notifications to followers (limit to first 100 to avoid spam)
     const followers = await db.follow.findMany({
       where: { followeeId: user.id },
       select: { followerId: true },
+      take: 100,
     })
     if (followers.length > 0) {
       await db.notification.createMany({

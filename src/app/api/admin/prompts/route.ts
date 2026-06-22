@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, sanitizeText, validateDateString } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/admin/prompts
@@ -52,6 +53,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 403 })
   }
 
+  // Rate limit admin actions
+  const rateCheck = checkRateLimit(req, 'admin', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+
   const body = await req.json()
   const { text, date, topic } = body as {
     text?: string
@@ -59,25 +66,27 @@ export async function POST(req: NextRequest) {
     topic?: string
   }
 
-  if (!text || !date) {
-    return NextResponse.json({ error: 'النص والتاريخ مطلوبان' }, { status: 400 })
+  // Sanitize text
+  const cleanText = sanitizeText(text || '', 500)
+  if (cleanText.length < 5) {
+    return NextResponse.json({ error: 'السؤال قصير جداً' }, { status: 400 })
   }
-
+  
   // Validate date format YYYY-MM-DD
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!validateDateString(date || '')) {
     return NextResponse.json({ error: 'صيغة التاريخ غير صحيحة' }, { status: 400 })
   }
 
-  const existing = await db.prompt.findUnique({ where: { date } })
+  const existing = await db.prompt.findUnique({ where: { date: date! } })
   if (existing) {
     return NextResponse.json({ error: 'فيه سؤال لهذا التاريخ بالفعل' }, { status: 400 })
   }
 
   const prompt = await db.prompt.create({
     data: {
-      text: text.trim().slice(0, 500),
-      date,
-      topic: topic?.trim().slice(0, 50) || null,
+      text: cleanText,
+      date: date!,
+      topic: topic ? sanitizeText(topic, 50) : null,
     },
   })
 

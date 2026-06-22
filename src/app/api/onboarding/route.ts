@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
   }
 
+  // If already onboarded, don't allow re-onboarding
+  if (user.onboarded) {
+    return NextResponse.json({ error: 'تم الإعداد بالفعل' }, { status: 400 })
+  }
+
   const body = await req.json()
   const { interests } = body as { interests?: string[] }
 
@@ -34,8 +39,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  if (interests.length > 8) {
+    return NextResponse.json(
+      { error: 'اختر 8 اهتمامات كحد أقصى' },
+      { status: 400 }
+    )
+  }
+
+  // Validate each interest
   const cleanInterests = interests
-    .filter((i) => VALID_INTERESTS.includes(i))
+    .filter((i) => typeof i === 'string' && VALID_INTERESTS.includes(i))
     .slice(0, 8)
 
   if (cleanInterests.length === 0) {

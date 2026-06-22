@@ -5,9 +5,13 @@ import {
   setSessionCookie,
   validateUsername,
   sanitizeUsername,
+  validateEmail,
+  validatePassword,
+  sanitizeText,
 } from '@/lib/auth'
 import { ensureSeedPrompts } from '@/lib/prompts'
 import { hashPassword, verifyPassword } from '@/lib/password'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const AVATAR_COLORS = [
   '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
@@ -22,6 +26,12 @@ function pickColor(seed: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 5 auth attempts per 15 min per IP
+  const rateCheck = checkRateLimit(req, 'auth')
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+  
   try {
     const body = await req.json()
     const { email, password, name, username, mode } = body as {
@@ -32,51 +42,81 @@ export async function POST(req: NextRequest) {
       mode?: 'login' | 'signup'
     }
 
-    if (!email || !password || password.length < 4) {
+    // Validate inputs
+    if (!email || typeof email !== 'string' || !validateEmail(email)) {
       return NextResponse.json(
-        { error: 'البريد الإلكتروني وكلمة المرور (4 أحرف على الأقل) مطلوبان' },
+        { error: 'بريد إلكتروني غير صحيح' },
+        { status: 400 }
+      )
+    }
+    
+    const passwordCheck = validatePassword(password || '')
+    if (!passwordCheck.valid) {
+      return NextResponse.json(
+        { error: passwordCheck.reason },
         { status: 400 }
       )
     }
 
-    const normalizedEmail = email.toLowerCase().trim()
+    const normalizedEmail = email.toLowerCase().trim().slice(0, 254)
 
     if (mode === 'signup') {
-      if (!name || !username) {
+      // Additional rate limit for signup
+      const signupRateCheck = checkRateLimit(req, 'signup')
+      if (!signupRateCheck.allowed && signupRateCheck.response) {
+        return signupRateCheck.response
+      }
+      
+      // Validate name
+      const cleanName = sanitizeText(name || '', 50)
+      if (cleanName.length < 2) {
         return NextResponse.json(
-          { error: 'الاسم واسم المستخدم مطلوبان' },
+          { error: 'الاسم لازم يكون حرفين على الأقل' },
           { status: 400 }
         )
       }
-      const cleanUsername = sanitizeUsername(username)
+      
+      // Validate username
+      const cleanUsername = sanitizeUsername(username || '')
       if (!validateUsername(cleanUsername)) {
         return NextResponse.json(
           { error: 'اسم المستخدم لازم يكون 3-20 حرف أو رقم أو _' },
           { status: 400 }
         )
       }
+      
+      // Block reserved usernames
+      const reservedUsernames = ['admin', 'root', 'api', 'www', 'mail', 'support', 'help', 'sada', 'echo', 'voice']
+      if (reservedUsernames.includes(cleanUsername)) {
+        return NextResponse.json(
+          { error: 'اسم المستخدم محجوز' },
+          { status: 400 }
+        )
+      }
+      
       const existing = await db.user.findFirst({
         where: {
           OR: [{ email: normalizedEmail }, { username: cleanUsername }],
         },
       })
       if (existing) {
+        // Generic error to prevent user enumeration
         return NextResponse.json(
           { error: 'البريد الإلكتروني أو اسم المستخدم مستخدم بالفعل' },
           { status: 400 }
         )
       }
-      const passwordHash = hashPassword(password)
+      const passwordHash = hashPassword(password!)
       const user = await db.user.create({
         data: {
           email: normalizedEmail,
-          name: name.trim(),
+          name: cleanName,
           username: cleanUsername,
           avatarColor: pickColor(cleanUsername),
           passwordHash,
         },
       })
-      const token = await createSession(user.id)
+      const token = await createSession(user.id, req)
       await setSessionCookie(token)
       await ensureSeedPrompts()
       return NextResponse.json({ user: safeUser(user) })
@@ -85,20 +125,22 @@ export async function POST(req: NextRequest) {
       const user = await db.user.findUnique({
         where: { email: normalizedEmail },
       })
-      if (!user || !user.passwordHash) {
+      
+      // Always do password verification to prevent timing attacks
+      // Even if user doesn't exist, we hash a dummy password and compare
+      const dummyHash = '$scrypt$16384$8$1$0000000000000000000000000000000000000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+      const hashToVerify = user?.passwordHash || dummyHash
+      
+      const ok = verifyPassword(password!, hashToVerify)
+      if (!user || !ok) {
+        // Generic error to prevent user enumeration
         return NextResponse.json(
           { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
           { status: 400 }
         )
       }
-      const ok = verifyPassword(password, user.passwordHash)
-      if (!ok) {
-        return NextResponse.json(
-          { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
-          { status: 400 }
-        )
-      }
-      const token = await createSession(user.id)
+      
+      const token = await createSession(user.id, req)
       await setSessionCookie(token)
       await ensureSeedPrompts()
       return NextResponse.json({ user: safeUser(user) })

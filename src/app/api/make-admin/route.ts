@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/make-admin?token=xxx
@@ -12,6 +13,12 @@ import { getCurrentUser } from '@/lib/auth'
  * After making yourself admin, this endpoint becomes useless.
  */
 export async function POST(req: NextRequest) {
+  // Rate limit: 3 attempts per hour per IP
+  const rateCheck = checkRateLimit(req, 'makeAdmin')
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+  
   const url = new URL(req.url)
   const token = url.searchParams.get('token')
   const expectedToken = 'sada-bootstrap-admin-2026'

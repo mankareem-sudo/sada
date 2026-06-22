@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // The SQL to create all tables (generated from prisma schema)
 // Read from prisma/schema.sql
@@ -210,6 +211,12 @@ ALTER TABLE "SupportDonation" ADD CONSTRAINT "SupportDonation_userId_fkey" FOREI
  * Used for first-time setup when prisma db push can't run in build env.
  */
 export async function POST(req: NextRequest) {
+  // Rate limit: very strict (3 per hour per IP)
+  const rateCheck = checkRateLimit(req, 'makeAdmin')
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+  
   const url = new URL(req.url)
   const token = url.searchParams.get('token') || req.headers.get('x-setup-token')
   const expectedToken = process.env.SETUP_TOKEN || 'sada-initial-setup-2026'

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { ensureSeedPrompts } from '@/lib/prompts'
 import { getCurrentUser } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/setup
@@ -14,11 +15,12 @@ import { getCurrentUser } from '@/lib/auth'
  * Can be called multiple times safely (idempotent).
  */
 export async function POST(req: NextRequest) {
-  // Auth check - only admin can call, OR allow if no users exist yet (first setup)
-  const user = await getCurrentUser()
-
-  // Allow if no auth (first deployment) - we'll add auth later
-  // For security, we use a setup token from env or default
+  // Rate limit: very strict (5 per hour per IP)
+  const rateCheck = checkRateLimit(req, 'makeAdmin') // reuse strict limit
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+  
   const url = new URL(req.url)
   const token = url.searchParams.get('token') || req.headers.get('x-setup-token')
   const expectedToken = process.env.SETUP_TOKEN || 'sada-initial-setup-2026'

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getCurrentUser } from '@/lib/auth'
-
-const VALID_REASONS = ['religion', 'politics', 'insult', 'spam', 'other']
+import { getCurrentUser, validateReportReason, sanitizeText } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/voice-notes/report
@@ -14,6 +13,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
   }
 
+  // Rate limit: 5 reports per hour per user
+  const rateCheck = checkRateLimit(req, 'report', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+
   const body = await req.json()
   const { voiceNoteId, reason, comment } = body as {
     voiceNoteId?: string
@@ -21,7 +26,7 @@ export async function POST(req: NextRequest) {
     comment?: string
   }
 
-  if (!voiceNoteId || !reason || !VALID_REASONS.includes(reason)) {
+  if (!voiceNoteId || !validateReportReason(reason || '')) {
     return NextResponse.json({ error: 'بيانات غير صحيحة' }, { status: 400 })
   }
 
@@ -43,7 +48,7 @@ export async function POST(req: NextRequest) {
       reporterId: user.id,
       voiceNoteId,
       reason,
-      comment: comment?.slice(0, 500),
+      comment: comment ? sanitizeText(comment, 500) : null,
     },
   })
 

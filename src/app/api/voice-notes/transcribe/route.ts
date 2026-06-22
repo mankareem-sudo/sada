@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/voice-notes/transcribe
@@ -11,6 +12,12 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
+  }
+
+  // Rate limit: 5 transcriptions per hour per user (AI cost control)
+  const rateCheck = checkRateLimit(req, 'transcribe', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
   }
 
   const body = await req.json()

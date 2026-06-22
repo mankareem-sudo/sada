@@ -15,6 +15,7 @@ export async function GET() {
     db.notification.count({ where: { recipientId: user.id, read: false } }),
   ])
 
+  // Return safe user data only (no passwordHash, no sensitive info)
   return NextResponse.json({
     user: {
       id: user.id,

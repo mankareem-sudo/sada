@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/admin/reports
@@ -10,6 +11,12 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user || !user.isAdmin) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 403 })
+  }
+
+  // Rate limit admin actions
+  const rateCheck = checkRateLimit(req, 'admin', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
   }
 
   const url = new URL(req.url)
@@ -72,14 +79,22 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 403 })
   }
 
+  // Rate limit admin actions
+  const rateCheck = checkRateLimit(req, 'admin', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+
   const body = await req.json()
   const { id, status } = body as {
     id?: string
     status?: 'reviewed' | 'removed' | 'dismissed'
   }
 
-  if (!id || !status) {
-    return NextResponse.json({ error: 'missing params' }, { status: 400 })
+  // Validate status
+  const validStatuses = ['reviewed', 'removed', 'dismissed']
+  if (!id || !status || !validStatuses.includes(status)) {
+    return NextResponse.json({ error: 'missing or invalid params' }, { status: 400 })
   }
 
   const report = await db.report.findUnique({

@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/admin/stats
  * Returns high-level platform stats (admin only).
  */
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser()
   if (!user || !user.isAdmin) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 403 })
+  }
+
+  // Rate limit admin actions
+  const rateCheck = checkRateLimit(req as any, 'admin', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
   }
 
   const [

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, sanitizeText, validateEmail } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/donations
@@ -8,6 +9,12 @@ import { getCurrentUser } from '@/lib/auth'
  * Logs a donation record (manual — actual payment is processed externally via Ko-fi etc).
  */
 export async function POST(req: NextRequest) {
+  // Rate limit: 3 donations per hour per IP
+  const rateCheck = checkRateLimit(req, 'donation')
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+  
   try {
     const user = await getCurrentUser()
     const body = await req.json()
@@ -20,22 +27,48 @@ export async function POST(req: NextRequest) {
       message?: string
     }
 
-    if (!name || !name.trim() || !amount || amount <= 0) {
+    // Validate name
+    const cleanName = sanitizeText(name || '', 100)
+    if (cleanName.length < 1) {
       return NextResponse.json(
-        { error: 'بيانات غير صحيحة' },
+        { error: 'الاسم مطلوب' },
         { status: 400 }
       )
     }
+    
+    // Validate email if provided
+    if (email && !validateEmail(email)) {
+      return NextResponse.json(
+        { error: 'بريد إلكتروني غير صحيح' },
+        { status: 400 }
+      )
+    }
+    
+    // Validate amount
+    const numAmount = Number(amount)
+    if (!numAmount || numAmount <= 0 || numAmount > 10000) {
+      return NextResponse.json(
+        { error: 'مبلغ غير صحيح' },
+        { status: 400 }
+      )
+    }
+    
+    // Validate currency
+    const cleanCurrency = (currency || 'USD').slice(0, 3).toUpperCase()
+    
+    // Validate method
+    const validMethods = ['kofi', 'buymeacoffee', 'paypal', 'manual']
+    const cleanMethod = validMethods.includes(method || '') ? method! : 'manual'
 
     const donation = await db.supportDonation.create({
       data: {
         userId: user?.id || null,
-        name: name.trim().slice(0, 100),
-        email: email?.trim().slice(0, 200) || null,
-        amount: Math.min(Number(amount), 10000),
-        currency: currency || 'USD',
-        method: method || 'manual',
-        message: message?.trim().slice(0, 500) || null,
+        name: cleanName,
+        email: email ? email.trim().slice(0, 200).toLowerCase() : null,
+        amount: numAmount,
+        currency: cleanCurrency,
+        method: cleanMethod,
+        message: message ? sanitizeText(message, 500) : null,
       },
     })
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, sanitizeText, detectXSS } from '@/lib/auth'
 
 /**
  * GET /api/users/profile?username=xxx
@@ -144,11 +144,21 @@ export async function PATCH(req: NextRequest) {
   const { name, bio } = body as { name?: string; bio?: string }
 
   const data: any = {}
-  if (typeof name === 'string' && name.trim().length >= 2) {
-    data.name = name.trim().slice(0, 50)
+  if (typeof name === 'string') {
+    const cleanName = sanitizeText(name, 50)
+    if (cleanName.length >= 2) {
+      if (detectXSS(cleanName)) {
+        return NextResponse.json({ error: 'محتوى غير مسموح في الاسم' }, { status: 400 })
+      }
+      data.name = cleanName
+    }
   }
   if (typeof bio === 'string') {
-    data.bio = bio.trim().slice(0, 200)
+    const cleanBio = sanitizeText(bio, 200)
+    if (detectXSS(cleanBio)) {
+      return NextResponse.json({ error: 'محتوى غير مسموح في النبذة' }, { status: 400 })
+    }
+    data.bio = cleanBio
   }
 
   if (Object.keys(data).length === 0) {

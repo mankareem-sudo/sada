@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/follow
@@ -12,13 +13,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
   }
 
+  // Rate limit: 100 follow actions per hour per user
+  const rateCheck = checkRateLimit(req, 'like', user.id) // reuse like limit
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+
   const body = await req.json()
   const { targetUserId, action } = body as {
     targetUserId?: string
     action?: 'follow' | 'unfollow'
   }
 
-  if (!targetUserId || !action) {
+  if (!targetUserId || !action || !['follow', 'unfollow'].includes(action)) {
     return NextResponse.json({ error: 'missing params' }, { status: 400 })
   }
 

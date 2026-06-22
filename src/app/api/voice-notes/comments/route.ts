@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, sanitizeText, detectXSS } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/voice-notes/comments?voiceNoteId=xxx
@@ -70,6 +71,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
   }
 
+  // Rate limit: 30 comments per hour per user
+  const rateCheck = checkRateLimit(req, 'comment', user.id)
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+
   const body = await req.json()
   const { voiceNoteId, content, parentId } = body as {
     voiceNoteId?: string
@@ -81,9 +88,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'محتاج محتوى' }, { status: 400 })
   }
 
-  const trimmed = content.trim().slice(0, 500)
+  // Sanitize content
+  const trimmed = sanitizeText(content, 500)
   if (trimmed.length < 1) {
     return NextResponse.json({ error: 'التعليق قصير جداً' }, { status: 400 })
+  }
+  
+  // Check for XSS attempts
+  if (detectXSS(trimmed)) {
+    return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
   }
 
   const note = await db.voiceNote.findUnique({

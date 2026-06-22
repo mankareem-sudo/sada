@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { sanitizeText } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/search?q=xxx
  * Searches users (by username/name) and voice notes (by description).
  */
 export async function GET(req: NextRequest) {
+  // Rate limit: 60 searches per minute per IP
+  const rateCheck = checkRateLimit(req, 'search')
+  if (!rateCheck.allowed && rateCheck.response) {
+    return rateCheck.response
+  }
+  
   const url = new URL(req.url)
-  const q = (url.searchParams.get('q') || '').trim()
+  const q = sanitizeText(url.searchParams.get('q') || '', 100)
   if (q.length < 1) {
     return NextResponse.json({ users: [], voiceNotes: [] })
   }
