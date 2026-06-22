@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>صدى — لوحة الإدارة</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg: #0a0a0f;
+      --card: #15121f;
+      --card-2: #1c1830;
+      --border: #2a2440;
+      --primary: #8b5cf6;
+      --primary-dim: #6d28d9;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #e5e7eb;
+      --text-dim: #9ca3af;
+      --text-muted: #6b7280;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    
+    /* === Login Screen === */
+    .login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: radial-gradient(ellipse at top, #1a1530 0%, var(--bg) 50%);
+    }
+    
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    
+    .login-card h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .login-card .subtitle {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      transition: border 0.2s;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+    
+    .btn:hover { background: var(--primary-dim); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #dc2626; }
+    
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #059669; }
+    
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover { background: var(--card-2); }
+    
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .alert.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      display: block;
+    }
+    
+    .alert.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+      display: block;
+    }
+    
+    /* === Dashboard === */
+    .dashboard {
+      display: none;
+      min-height: 100vh;
+    }
+    
+    .dashboard.active { display: block; }
+    
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    
+    .topbar .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .topbar .brand .logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    
+    .topbar .user-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+    }
+    
+    .topbar .user-info .name {
+      color: var(--text);
+      font-weight: 500;
+    }
+    
+    .topbar .user-info .role {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .logout-btn:hover { background: var(--card-2); color: var(--text); }
+    
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 70px);
+    }
+    
+    .sidebar {
+      background: var(--card);
+      border-left: 1px solid var(--border);
+      padding: 20px 0;
+    }
+    
+    .sidebar .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      border-right: 3px solid transparent;
+    }
+    
+    .sidebar .nav-item:hover {
+      background: var(--card-2);
+      color: var(--text);
+    }
+    
+    .sidebar .nav-item.active {
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--primary);
+      border-right-color: var(--primary);
+    }
+    
+    .sidebar .nav-item .icon {
+      font-size: 18px;
+      width: 20px;
+      text-align: center;
+    }
+    
+    .sidebar .nav-item .badge {
+      background: var(--danger);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-right: auto;
+    }
+    
+    .content {
+      padding: 32px;
+      overflow-y: auto;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .page-subtitle {
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    .stat-card .label {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    
+    .stat-card.alert {
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.05);
+    }
+    
+    .stat-card.alert .value { color: var(--danger); }
+    
+    /* Donations card */
+    .donations-card {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(245, 158, 11, 0.1));
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .donations-card .label {
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .donations-card .amount {
+      font-size: 36px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .donations-card .count {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    
+    /* Tables */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .card-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .card-body {
+      padding: 0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      text-align: right;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      background: var(--card-2);
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    
+    tr:last-child td { border-bottom: none; }
+    
+    tr:hover td { background: var(--card-2); }
+    
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+    .badge-danger { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+    .badge-info { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
+    
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      margin-left: 4px;
+    }
+    
+    .action-btn:hover { background: var(--card-2); color: var(--text); }
+    .action-btn.danger { color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+    .action-btn.danger:hover { background: rgba(239, 68, 68, 0.1); }
+    
+    /* Forms */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .form-row.single { grid-template-columns: 1fr; }
+    
+    .form-field label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    
+    .form-field input:focus,
+    .form-field textarea:focus,
+    .form-field select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .form-field textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    
+    .form-actions .btn {
+      width: auto;
+      padding: 10px 24px;
+    }
+    
+    /* Voice note player in reports */
+    .vn-player {
+      background: var(--card-2);
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    
+    .vn-player audio {
+      width: 100%;
+      height: 36px;
+    }
+    
+    .vn-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+    }
+    
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        border-left: none;
+        border-bottom: 1px solid var(--border);
+        padding: 8px 0;
+        display: flex;
+        overflow-x: auto;
+      }
+      .sidebar .nav-item {
+        padding: 8px 16px;
+        border-right: none;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+      }
+      .sidebar .nav-item.active {
+        border-right: none;
+        border-bottom-color: var(--primary);
+      }
+      .content { padding: 20px; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <h1>🎤 صدى</h1>
+    <p class="subtitle">لوحة الإدارة — Sada Admin Panel</p>
+    
+    <div id="loginAlert" class="alert"></div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">البريد الإلكتروني</label>
+        <input type="email" id="email" required autocomplete="email" dir="ltr">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">كلمة المرور</label>
+        <input type="password" id="password" required autocomplete="current-password" dir="ltr">
+      </div>
+      
+      <button type="submit" class="btn" id="loginBtn">تسجيل الدخول</button>
+    </form>
+    
+    <p style="text-align:center; margin-top:24px; font-size:12px; color:var(--text-muted);">
+      لازم يكون حسابك مفعّل كأدمن في صدى
+    </p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="dashboard">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">🎤</div>
+      <span>صدى — لوحة الإدارة</span>
+    </div>
+    <div class="user-info">
+      <span class="name" id="adminName"></span>
+      <span class="role">ADMIN</span>
+      <button class="logout-btn" onclick="logout()">خروج</button>
+    </div>
+  </div>
+  
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-item active" data-page="stats" onclick="showPage('stats')">
+        <span class="icon">📊</span>
+        <span>الإحصائيات</span>
+      </div>
+      <div class="nav-item" data-page="users" onclick="showPage('users')">
+        <span class="icon">👥</span>
+        <span>المستخدمين</span>
+      </div>
+      <div class="nav-item" data-page="prompts" onclick="showPage('prompts')">
+        <span class="icon">📝</span>
+        <span>الأسئلة</span>
+      </div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports')">
+        <span class="icon">🚩</span>
+        <span>البلاغات</span>
+        <span class="badge" id="reportsBadge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-page="voiceNotes" onclick="showPage('voiceNotes')">
+        <span class="icon">🎙️</span>
+        <span>التسجيلات</span>
+      </div>
+      <div class="nav-item" data-page="donations" onclick="showPage('donations')">
+        <span class="icon">💝</span>
+        <span>التبرعات</span>
+      </div>
+    </div>
+    
+    <div class="content">
+      <!-- Stats Page -->
+      <div id="page-stats" class="page">
+        <h1 class="page-title">الإحصائيات</h1>
+        <p class="page-subtitle">نظرة عامة على منصة صدى</p>
+        
+        <div id="statsContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Users Page -->
+      <div id="page-users" class="page" style="display:none">
+        <h1 class="page-title">المستخدمين</h1>
+        <p class="page-subtitle">إدارة حسابات المستخدمين</p>
+        
+        <div id="usersContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Prompts Page -->
+      <div id="page-prompts" class="page" style="display:none">
+        <h1 class="page-title">الأسئلة اليومية</h1>
+        <p class="page-subtitle">إدارة أسئلة الأيام</p>
+        
+        <div class="card" style="margin-bottom:24px">
+          <div class="card-header">
+            <h3>➕ إضافة سؤال جديد</h3>
+          </div>
+          <div class="card-body" style="padding:20px">
+            <form id="addPromptForm">
+              <div class="form-row single">
+                <div class="form-field">
+                  <label>نص السؤال</label>
+                  <textarea id="promptText" required placeholder="مثال: إيه أكبر درس تعلمته؟"></textarea>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label>التاريخ</label>
+                  <input type="date" id="promptDate" required>
+                </div>
+                <div class="form-field">
+                  <label>الموضوع (اختياري)</label>
+                  <input type="text" id="promptTopic" placeholder="life, tech, career...">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn">إضافة السؤال</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <div id="promptsContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Reports Page -->
+      <div id="page-reports" class="page" style="display:none">
+        <h1 class="page-title">البلاغات</h1>
+        <p class="page-subtitle">مراجعة المحتوى المبلّغ عنه</p>
+        
+        <div id="reportsContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Voice Notes Page -->
+      <div id="page-voiceNotes" class="page" style="display:none">
+        <h1 class="page-title">التسجيلات الصوتية</h1>
+        <p class="page-subtitle">كل الأصداء على المنصة</p>
+        
+        <div id="voiceNotesContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Donations Page -->
+      <div id="page-donations" class="page" style="display:none">
+        <h1 class="page-title">التبرعات</h1>
+        <p class="page-subtitle">الدعم المالي اللي وصل صدى</p>
+        
+        <div id="donationsContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// === State ===
+let currentUser = null;
+let currentPage = 'stats';
+
+// === Check if already logged in ===
+(async function init() {
+  try {
+    const res = await fetch('/api/auth/me');
+    const data = await res.json();
+    if (data.user && data.user.isAdmin) {
+      showDashboard(data.user);
+    } else if (data.user) {
+      document.getElementById('loginAlert').className = 'alert error';
+      document.getElementById('loginAlert').textContent = 'حسابك مش أدمن. لازم تتفعل كأدمن الأول.';
+    }
+  } catch (e) {
+    // Not logged in, show login
+  }
+})();
+
+// === Login ===
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const alertEl = document.getElementById('loginAlert');
+  const btn = document.getElementById('loginBtn');
+  
+  alertEl.className = 'alert';
+  btn.disabled = true;
+  btn.textContent = 'جاري...';
+  
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, mode: 'login' }),
+    });
+    const data = await res.json();
+    
+    if (!res.ok) {
+      alertEl.className = 'alert error';
+      alertEl.textContent = data.error || 'فشل تسجيل الدخول';
+      btn.disabled = false;
+      btn.textContent = 'تسجيل الدخول';
+      return;
+    }
+    
+    if (!data.user.isAdmin) {
+      alertEl.className = 'alert error';
+      alertEl.textContent = 'حسابك مش أدمن. لازم تتفعل كأدمن الأول.';
+      btn.disabled = false;
+      btn.textContent = 'تسجيل الدخول';
+      return;
+    }
+    
+    showDashboard(data.user);
+  } catch (e) {
+    alertEl.className = 'alert error';
+    alertEl.textContent = 'خطأ في الاتصال';
+    btn.disabled = false;
+    btn.textContent = 'تسجيل الدخول';
+  }
+});
+
+function showDashboard(user) {
+  currentUser = user;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').classList.add('active');
+  document.getElementById('adminName').textContent = user.name;
+  loadStats();
+}
+
+function logout() {
+  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+    location.reload();
+  });
+}
+
+// === Navigation ===
+function showPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.getElementById('page-' + page).style.display = 'block';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  
+  if (page === 'stats') loadStats();
+  if (page === 'users') loadUsers();
+  if (page === 'prompts') loadPrompts();
+  if (page === 'reports') loadReports();
+  if (page === 'voiceNotes') loadVoiceNotes();
+  if (page === 'donations') loadDonations();
+}
+
+// === Stats ===
+async function loadStats() {
+  const container = document.getElementById('statsContent');
+  try {
+    const res = await fetch('/api/admin/stats');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    
+    const stats = [
+      { label: '👥 المستخدمين', value: data.users, icon: '👥' },
+      { label: '🎙️ التسجيلات', value: data.voiceNotes, icon: '🎙️' },
+      { label: '📅 الأسئلة', value: data.prompts, icon: '📅' },
+      { label: '💬 التعليقات', value: data.comments, icon: '💬' },
+      { label: '❤️ الإعجابات', value: data.likes, icon: '❤️' },
+      { label: '🔖 المحفوظات', value: data.bookmarks, icon: '🔖' },
+      { label: '🤝 المتابعات', value: data.follows, icon: '🤝' },
+      { label: '🔥 نشطون هذا الأسبوع', value: data.activeThisWeek, icon: '🔥' },
+      { label: '🚩 إجمالي البلاغات', value: data.reports, icon: '🚩' },
+    ];
+    
+    if (data.pendingReports > 0) {
+      stats.push({ label: '⚠️ بلاغات معلّقة', value: data.pendingReports, icon: '⚠️', alert: true });
+    }
+    
+    container.innerHTML = `
+      <div class="stats-grid">
+        ${stats.map(s => `
+          <div class="stat-card ${s.alert ? 'alert' : ''}">
+            <div class="label">${s.icon} ${s.label}</div>
+            <div class="value">${s.value.toLocaleString('ar-EG')}</div>
+          </div>
+        `).join('')}
+      </div>
+      
+      ${data.donations > 0 ? `
+        <div class="donations-card">
+          <div class="label">💝 إجمالي الدعم المالي</div>
+          <div class="amount">$${data.totalDonations.toFixed(2)}</div>
+          <div class="count">من ${data.donations} داعم 🙏</div>
+        </div>
+      ` : ''}
+    `;
+    
+    // Update reports badge
+    const badge = document.getElementById('reportsBadge');
+    if (data.pendingReports > 0) {
+      badge.textContent = data.pendingReports;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>فشل تحميل الإحصائيات</p></div>';
+  }
+}
+
+// === Users ===
+async function loadUsers() {
+  const container = document.getElementById('usersContent');
+  try {
+    // Use search API to get all users (workaround)
+    // Actually let me use Supabase directly via a new endpoint
+    // For now, use /api/admin/stats for count, and search for listing
+    const res = await fetch('/api/search?q=');
+    const data = await res.json();
+    const users = data.users || [];
+    
+    if (users.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>مفيش مستخدمين لسه</p></div>';
+      return;
+    }
+    
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h3>${users.length} مستخدم</h3>
+        </div>
+        <div class="card-body">
+          <table>
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>اسم المستخدم</th>
+                <th>الإيميل</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map(u => `
+                <tr>
+                  <td>${u.name}</td>
+                  <td dir="ltr">@${u.username}</td>
+                  <td dir="ltr">${u.id}</td>
+                  <td><span class="badge badge-info">مستخدم</span></td>
+                  <td>
+                    <button class="action-btn" onclick="alert('قريباً')">عرض</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>فشل تحميل المستخدمين</p></div>';
+  }
+}
+
+// === Prompts ===
+async function loadPrompts() {
+  const container = document.getElementById('promptsContent');
+  try {
+    const res = await fetch('/api/admin/prompts');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const prompts = data.prompts || [];
+    
+    if (prompts.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>مفيش أسئلة لسه</p></div>';
+      return;
+    }
+    
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h3>${prompts.length} سؤال</h3>
+        </div>
+        <div class="card-body">
+          <table>
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>السؤال</th>
+                <th>الموضوع</th>
+                <th>التسجيلات</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${prompts.map(p => `
+                <tr>
+                  <td dir="ltr">${p.date}</td>
+                  <td>${p.text}</td>
+                  <td>${p.topic ? `<span class="badge badge-info">${p.topic}</span>` : '—'}</td>
+                  <td>${p.voiceNotesCount}</td>
+                  <td>
+                    <button class="action-btn danger" onclick="deletePrompt('${p.id}')">حذف</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>فشل تحميل الأسئلة</p></div>';
+  }
+}
+
+document.getElementById('addPromptForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = document.getElementById('promptText').value;
+  const date = document.getElementById('promptDate').value;
+  const topic = document.getElementById('promptTopic').value;
+  
+  try {
+    const res = await fetch('/api/admin/prompts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, date, topic }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'فشل الإضافة');
+      return;
+    }
+    document.getElementById('promptText').value = '';
+    document.getElementById('promptDate').value = '';
+    document.getElementById('promptTopic').value = '';
+    loadPrompts();
+    alert('✅ تم إضافة السؤال');
+  } catch (e) {
+    alert('فشل');
+  }
+});
+
+async function deletePrompt(id) {
+  if (!confirm('متأكد من حذف هذا السؤال؟')) return;
+  try {
+    const res = await fetch(`/api/admin/prompts?id=${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      loadPrompts();
+      alert('✅ تم الحذف');
+    }
+  } catch (e) {
+    alert('فشل الحذف');
+  }
+}
+
+// === Reports ===
+async function loadReports() {
+  const container = document.getElementById('reportsContent');
+  try {
+    const res = await fetch('/api/admin/reports?status=pending');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const reports = data.reports || [];
+    
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>مفيش بلاغات معلّقة. كله تمام!</p></div>';
+      return;
+    }
+    
+    const reasonLabels = {
+      religion: 'إساءة للأديان',
+      politics: 'سياسة',
+      insult: 'إهانة',
+      spam: 'سبام',
+      other: 'أخرى',
+    };
+    
+    container.innerHTML = reports.map(r => `
+      <div class="card">
+        <div class="card-header">
+          <h3>
+            <span class="badge badge-danger">${reasonLabels[r.reason] || r.reason}</span>
+            — بلّغه: ${r.reporter?.name || 'مجهول'}
+          </h3>
+          <span style="font-size:12px;color:var(--text-dim)">${new Date(r.createdAt).toLocaleString('ar-EG')}</span>
+        </div>
+        <div class="card-body" style="padding:20px">
+          ${r.comment ? `<div style="background:var(--card-2);padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;color:var(--text-dim)">"${r.comment}"</div>` : ''}
+          
+          ${r.voiceNote ? `
+            <div style="margin-bottom:16px">
+              <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">
+                بواسطة: ${r.voiceNote.user?.name || 'مجهول'}
+              </div>
+              ${r.voiceNote.description ? `<p style="font-size:14px;margin-bottom:8px">${r.voiceNote.description}</p>` : ''}
+              <div class="vn-player">
+                <audio controls src="${r.voiceNote.audioData}"></audio>
+                <div class="vn-meta">المدة: ${r.voiceNote.durationSec} ثانية</div>
+              </div>
+            </div>
+          ` : '<p style="color:var(--text-dim)">التسجيل محذوف بالفعل</p>'}
+          
+          <div class="form-actions">
+            <button class="btn btn-danger" style="flex:1" onclick="handleReport('${r.id}', 'removed')">
+              🗑️ حذف التسجيل
+            </button>
+            <button class="btn btn-outline" style="flex:1" onclick="handleReport('${r.id}', 'dismissed')">
+              ✖️ رفض البلاغ
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>فشل تحميل البلاغات</p></div>';
+  }
+}
+
+async function handleReport(id, status) {
+  const action = status === 'removed' ? 'حذف التسجيل' : 'رفض البلاغ';
+  if (!confirm(`متأكد من ${action}؟`)) return;
+  
+  try {
+    const res = await fetch('/api/admin/reports', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+    if (res.ok) {
+      loadReports();
+      loadStats();
+      alert('✅ تم');
+    }
+  } catch (e) {
+    alert('فشل');
+  }
+}
+
+// === Voice Notes ===
+async function loadVoiceNotes() {
+  const container = document.getElementById('voiceNotesContent');
+  try {
+    const res = await fetch('/api/voice-notes/discover?limit=100');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const notes = data.notes || [];
+    
+    if (notes.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">🎙️</div><p>مفيش تسجيلات لسه</p></div>';
+      return;
+    }
+    
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h3>${notes.length} تسجيل</h3>
+        </div>
+        <div class="card-body">
+          <table>
+            <thead>
+              <tr>
+                <th>المستخدم</th>
+                <th>الوصف</th>
+                <th>المدة</th>
+                <th>التشغيل</th>
+                <th>الإعجابات</th>
+                <th>التاريخ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${notes.map(n => `
+                <tr>
+                  <td>${n.user?.name || 'مجهول'}</td>
+                  <td>${n.description ? n.description.slice(0, 50) + (n.description.length > 50 ? '...' : '') : '—'}</td>
+                  <td>${n.durationSec}ث</td>
+                  <td>${n.plays || 0}</td>
+                  <td>${n.likesCount || 0}</td>
+                  <td>${new Date(n.createdAt).toLocaleDateString('ar-EG')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>فشل تحميل التسجيلات</p></div>';
+  }
+}
+
+// === Donations ===
+async function loadDonations() {
+  const container = document.getElementById('donationsContent');
+  try {
+    const res = await fetch('/api/donations');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    
+    container.innerHTML = `
+      <div class="donations-card" style="margin-bottom:24px">
+        <div class="label">💝 إجمالي الدعم</div>
+        <div class="amount">$${(data.totalAmount || 0).toFixed(2)}</div>
+        <div class="count">من ${data.count || 0} داعم</div>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h3>تفاصيل التبرعات</h3>
+        </div>
+        <div class="card-body">
+          <div class="empty-state">
+            <div class="icon">💝</div>
+            <p>لعرض التفاصيل الكاملة، استعلم من Supabase Dashboard</p>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>فشل تحميل التبرعات</p></div>';
+  }
+}
+</script>
+
+</body>
+</html>
