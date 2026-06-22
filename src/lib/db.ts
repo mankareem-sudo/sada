@@ -389,10 +389,17 @@ function createTableHandler(tableName: string): any {
       if (!data.id) {
         data.id = generateId()
       }
-      // Auto-set createdAt/updatedAt if not provided
+      // Auto-set createdAt/updatedAt if not provided AND table has these columns
+      // Session table doesn't have updatedAt, so we skip it for tables without it
+      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation']
       const nowIso = new Date().toISOString()
       if (!data.createdAt) data.createdAt = nowIso
-      if (!data.updatedAt) data.updatedAt = nowIso
+      if (!data.updatedAt && !tablesWithoutUpdatedAt.includes(tableName)) {
+        data.updatedAt = nowIso
+      } else if (tablesWithoutUpdatedAt.includes(tableName)) {
+        // Remove updatedAt if it was set (table doesn't have it)
+        delete data.updatedAt
+      }
       const { data: result, error } = await supabase
         .from(tableName)
         .insert(data)
@@ -469,9 +476,14 @@ function createTableHandler(tableName: string): any {
     async update(args: UpdateArgs) {
       // Build filter from where
       const filter = buildFilter(args.where)
-      // Auto-update updatedAt if applicable
+      // Auto-update updatedAt if applicable (only for tables that have it)
+      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation']
       const updateData = { ...args.data }
-      if (!updateData.updatedAt) updateData.updatedAt = new Date().toISOString()
+      if (!tablesWithoutUpdatedAt.includes(tableName)) {
+        if (!updateData.updatedAt) updateData.updatedAt = new Date().toISOString()
+      } else {
+        delete updateData.updatedAt
+      }
       
       // First find the record to update (for unique constraint)
       const { data: existing, error: findErr } = await supabase
