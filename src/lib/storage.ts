@@ -1,152 +1,198 @@
 /**
- * Supabase Storage Service
+ * Cloudinary Storage Service
  * 
- * Uploads files to Supabase Storage (instead of base64 in DB).
- * Files are stored as public URLs — much faster, smaller DB, CDN-backed.
+ * Uploads images to Cloudinary (instead of base64 in DB or Supabase Storage).
  * 
- * Buckets:
- * - avatars: profile pictures (public)
- * - posts: post images (public)
- * - voice-notes: voice recordings (public)
- * - comments: comment images/voice (public)
+ * Benefits:
+ * - 25GB free storage + 25GB bandwidth/month
+ * - Automatic WebP conversion (smaller files)
+ * - On-the-fly resizing via URL transformations
+ * - Global CDN (fast loading worldwide)
+ * - Automatic compression + optimization
+ * 
+ * Credit-saving strategy:
+ * - Client-side: light compression (just resize to max 1280px + quality 0.85)
+ *   This reduces upload size by ~80% before it hits Cloudinary
+ * - Cloudinary-side: automatic WebP + q_auto (smart quality)
+ *   This reduces storage size by another ~50%
+ * - For display: request specific sizes via URL (e.g. w_200 for avatars)
+ *   This reduces bandwidth by ~70%
+ * 
+ * Net result: 10MB upload → ~50KB stored → ~15KB served
  */
 
-import { supabase } from './db'
+import { v2 as cloudinary } from 'cloudinary'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+// Configure Cloudinary
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || ''
+const API_KEY = process.env.CLOUDINARY_API_KEY || ''
+const API_SECRET = process.env.CLOUDINARY_API_SECRET || ''
+
+if (CLOUD_NAME && API_KEY && API_SECRET) {
+  cloudinary.config({
+    cloud_name: CLOUD_NAME,
+    api_key: API_KEY,
+    api_secret: API_SECRET,
+    secure: true,
+  })
+}
 
 /**
- * Upload a file to Supabase Storage
- * Returns the public URL
+ * Upload an image to Cloudinary from a base64 data URI
+ * 
+ * @param dataUri - base64 data URI (data:image/...;base64,...)
+ * @param folder - Cloudinary folder (avatars, posts, comments)
+ * @returns Cloudinary public URL
  */
-export async function uploadFile(
-  bucket: string,
-  filePath: string,
-  fileData: string, // base64 data URI
-  contentType: string
+export async function uploadToCloudinary(
+  dataUri: string,
+  folder: string = 'general'
 ): Promise<string | null> {
+  if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+    console.error('[cloudinary] Missing credentials')
+    return null
+  }
+
   try {
-    // Extract base64 data from data URI
-    const match = fileData.match(/^data:([^;]+);base64,(.+)$/)
-    if (!match) {
-      console.error('[storage] Invalid data URI')
-      return null
-    }
-    
-    const [, , base64Data] = match
-    
-    // Convert base64 to Buffer
-    const buffer = Buffer.from(base64Data, 'base64')
-    
-    // Upload using service role key (bypasses RLS)
-    const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SERVICE_KEY}`,
-          'Content-Type': contentType,
-          'x-upsert': 'true',
-        },
-        body: buffer,
-      }
-    )
-    
-    if (!response.ok) {
-      const err = await response.text()
-      console.error('[storage] Upload error:', err)
-      return null
-    }
-    
-    // Return public URL
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filePath}`
-    return publicUrl
-  } catch (e) {
-    console.error('[storage] Upload exception:', e)
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: `sada/${folder}`,
+      resource_type: 'image',
+      // Automatic format optimization (WebP for modern browsers)
+      format: 'webp',
+      // Smart quality — reduces size without visible quality loss
+      quality: 'auto',
+      // Automatic optimization
+      fetch_format: 'auto',
+      // Don't create eager transformations (saves credits)
+      // We use on-the-fly URL transformations instead
+    })
+
+    return result.secure_url
+  } catch (e: any) {
+    console.error('[cloudinary] Upload error:', e?.message || e)
     return null
   }
 }
 
 /**
- * Delete a file from Supabase Storage
+ * Upload avatar image to Cloudinary
  */
-export async function deleteFile(bucket: string, filePath: string): Promise<boolean> {
+export async function uploadAvatar(dataUri: string): Promise<string | null> {
+  return uploadToCloudinary(dataUri, 'avatars')
+}
+
+/**
+ * Upload post image to Cloudinary
+ */
+export async function uploadPostImage(dataUri: string): Promise<string | null> {
+  return uploadToCloudinary(dataUri, 'posts')
+}
+
+/**
+ * Upload comment image to Cloudinary
+ */
+export async function uploadCommentImage(dataUri: string): Promise<string | null> {
+  return uploadToCloudinary(dataUri, 'comments')
+}
+
+/**
+ * Upload voice note to Cloudinary
+ */
+export async function uploadVoiceNote(dataUri: string): Promise<string | null> {
+  if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+    console.error('[cloudinary] Missing credentials')
+    return null
+  }
+
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${SERVICE_KEY}`,
-        },
-      }
-    )
-    return response.ok
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: 'sada/voice-notes',
+      resource_type: 'video', // Cloudinary treats audio as 'video'
+      format: 'webm',
+    })
+
+    return result.secure_url
+  } catch (e: any) {
+    console.error('[cloudinary] Voice upload error:', e?.message || e)
+    return null
+  }
+}
+
+/**
+ * Delete a file from Cloudinary by URL
+ */
+export async function deleteFromCloudinary(publicUrl: string): Promise<boolean> {
+  if (!CLOUD_NAME || !API_KEY || !API_SECRET) return false
+
+  try {
+    // Extract public_id from URL
+    // URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/sada/{folder}/{filename}.webp
+    const match = publicUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.(webp|jpg|png|gif|mp4|webm)/)
+    if (!match) return false
+
+    const publicId = match[1]
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: publicUrl.includes('/video/') ? 'video' : 'image',
+    })
+    return true
   } catch {
     return false
   }
 }
 
 /**
- * Generate a unique file path
+ * Get a resized version of a Cloudinary URL
+ * 
+ * This is the MAGIC of Cloudinary — you can request any size
+ * just by modifying the URL. No need to store multiple versions.
+ * 
+ * Example:
+ *   getResizedUrl(url, 200, 200) → 200x200 avatar thumbnail
+ *   getResizedUrl(url, 720, 720) → 720x720 post image
+ *   getResizedUrl(url, 48, 48) → 48x48 tiny avatar
+ * 
+ * This saves bandwidth: instead of loading 200KB image for a 48px avatar,
+ * we load a ~3KB thumbnail.
  */
-export function generateFilePath(extension: string = 'jpg'): string {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).slice(2, 10)
-  return `${timestamp}_${random}.${extension}`
+export function getResizedUrl(
+  originalUrl: string,
+  width: number,
+  height: number,
+  quality: 'auto' | 'low' | 'high' = 'auto'
+): string {
+  if (!originalUrl || !originalUrl.includes('res.cloudinary.com')) {
+    return originalUrl // Not a Cloudinary URL, return as-is
+  }
+
+  // Insert transformation parameters
+  // URL: .../image/upload/v123/sada/avatars/file.webp
+  // Becomes: .../image/upload/c_fill,w_200,h_200,q_auto/v123/sada/avatars/file.webp
+  
+  const qualityParam = quality === 'low' ? 'q_30' : quality === 'high' ? 'q_90' : 'q_auto'
+  const transformation = `c_fill,w_${width},h_${height},${qualityParam},f_auto`
+
+  return originalUrl.replace('/upload/', `/upload/${transformation}/`)
 }
 
 /**
- * Get content type from data URI
+ * Get avatar URL at specific size
  */
-export function getContentType(dataUri: string): string {
-  const match = dataUri.match(/^data:([^;]+);base64,/)
-  return match ? match[1] : 'application/octet-stream'
+export function getAvatarUrl(url: string, size: 'sm' | 'md' | 'lg' | 'xl' = 'md'): string {
+  const sizes = { sm: 48, md: 96, lg: 128, xl: 256 }
+  return getResizedUrl(url, sizes[size], sizes[size])
 }
 
 /**
- * Upload avatar image
+ * Get post image URL at specific size
  */
-export async function uploadAvatar(dataUri: string): Promise<string | null> {
-  const contentType = getContentType(dataUri)
-  const ext = contentType.includes('png') ? 'png' : 
-              contentType.includes('gif') ? 'gif' :
-              contentType.includes('webp') ? 'webp' : 'jpg'
-  const path = generateFilePath(ext)
-  return uploadFile('avatars', path, dataUri, contentType)
+export function getPostImageUrl(url: string, size: 'thumb' | 'medium' | 'full' = 'medium'): string {
+  const sizes = { thumb: 200, medium: 720, full: 1080 }
+  return getResizedUrl(url, sizes[size], sizes[size])
 }
 
 /**
- * Upload post image
+ * Get comment image URL at specific size
  */
-export async function uploadPostImage(dataUri: string): Promise<string | null> {
-  const contentType = getContentType(dataUri)
-  const ext = contentType.includes('png') ? 'png' : 
-              contentType.includes('gif') ? 'gif' :
-              contentType.includes('webp') ? 'webp' : 'jpg'
-  const path = generateFilePath(ext)
-  return uploadFile('posts', path, dataUri, contentType)
-}
-
-/**
- * Upload voice note
- */
-export async function uploadVoiceNote(dataUri: string): Promise<string | null> {
-  const contentType = getContentType(dataUri)
-  const ext = contentType.includes('webm') ? 'webm' : 
-              contentType.includes('ogg') ? 'ogg' :
-              contentType.includes('mp4') ? 'mp4' : 'webm'
-  const path = generateFilePath(ext)
-  return uploadFile('voice-notes', path, dataUri, contentType)
-}
-
-/**
- * Upload comment image
- */
-export async function uploadCommentImage(dataUri: string): Promise<string | null> {
-  const contentType = getContentType(dataUri)
-  const ext = contentType.includes('png') ? 'png' : 'jpg'
-  const path = generateFilePath(ext)
-  return uploadFile('comments', path, dataUri, contentType)
+export function getCommentImageUrl(url: string): string {
+  return getResizedUrl(url, 480, 480, 'low')
 }

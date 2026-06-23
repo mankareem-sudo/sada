@@ -17,19 +17,36 @@ const sizes = {
   xl: 'h-20 w-20 text-2xl',
 }
 
+// Cloudinary resize sizes (pixels)
+const cloudinarySizes = {
+  sm: 48,
+  md: 96,
+  lg: 128,
+  xl: 256,
+}
+
+function getCloudinaryUrl(url: string, size: number): string {
+  if (!url || !url.includes('res.cloudinary.com')) return url
+  // Insert transformation: c_fill,w_X,h_X,q_auto,f_auto
+  const transformation = `c_fill,w_${size},h_${size},q_auto,f_auto`
+  return url.replace('/upload/', `/upload/${transformation}/`)
+}
+
 export function Avatar({ name, color, size = 'md', imageUrl, className }: AvatarProps) {
   const initial = (name || '?').trim().charAt(0).toUpperCase()
   
   if (imageUrl) {
+    const resizedUrl = getCloudinaryUrl(imageUrl, cloudinarySizes[size])
     return (
       <img
-        src={imageUrl}
+        src={resizedUrl}
         alt={name}
         className={cn(
           'rounded-full object-cover shrink-0 shadow-inner border-2 border-border/30',
           sizes[size],
           className
         )}
+        loading="lazy"
       />
     )
   }

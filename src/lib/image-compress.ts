@@ -1,14 +1,13 @@
 /**
- * Image Compression Utility
+ * Image Compression Utility (Client-side)
  * 
- * Takes a large image (up to 10MB) and compresses it to a smaller size
- * while maintaining visual quality.
+ * Light compression only — Cloudinary does the heavy lifting:
+ * - Auto WebP conversion
+ * - Smart quality (q_auto)
+ * - On-the-fly resizing via URL
  * 
- * Strategy:
- * - Max dimensions: 1080px (Instagram-like)
- * - Quality: 80% for JPEG, preserves detail
- * - Output: JPEG (smaller than PNG for photos)
- * - Target: ~100-300KB final size
+ * We only resize to max 1280px and quality 0.85 to reduce upload bandwidth.
+ * Final optimization happens on Cloudinary's servers.
  */
 
 interface CompressOptions {
@@ -26,10 +25,10 @@ export function compressImage(
   options: CompressOptions = {}
 ): Promise<string> {
   const {
-    maxWidth = 1080,
-    maxHeight = 1080,
-    quality = 0.8,
-    maxSizeKB = 500,
+    maxWidth = 1280,
+    maxHeight = 1280,
+    quality = 0.85,
+    maxSizeKB = 1500,
   } = options
 
   return new Promise((resolve, reject) => {
@@ -42,7 +41,6 @@ export function compressImage(
     reader.onload = (e) => {
       const img = new Image()
       img.onload = () => {
-        // Calculate new dimensions
         let width = img.width
         let height = img.height
 
@@ -57,7 +55,6 @@ export function compressImage(
           height = maxHeight
         }
 
-        // Create canvas
         const canvas = document.createElement('canvas')
         canvas.width = width
         canvas.height = height
@@ -68,14 +65,11 @@ export function compressImage(
           return
         }
 
-        // Draw image
         ctx.drawImage(img, 0, 0, width, height)
 
-        // Try progressive compression
         let currentQuality = quality
         let result = canvas.toDataURL('image/jpeg', currentQuality)
         
-        // If still too large, reduce quality
         while (result.length > maxSizeKB * 1024 * 1.33 && currentQuality > 0.3) {
           currentQuality -= 0.1
           result = canvas.toDataURL('image/jpeg', currentQuality)
@@ -92,40 +86,39 @@ export function compressImage(
 }
 
 /**
- * Compress avatar image (smaller dimensions for profile pics)
- * 200x200 is enough for avatars on mobile — they display at 32-80px
+ * Compress avatar — light (Cloudinary will optimize further)
+ * Just resize to max 512px and quality 0.85
  */
 export function compressAvatar(file: File): Promise<string> {
   return compressImage(file, {
-    maxWidth: 256,
-    maxHeight: 256,
-    quality: 0.75,
-    maxSizeKB: 80, // ~80KB per avatar
+    maxWidth: 512,
+    maxHeight: 512,
+    quality: 0.85,
+    maxSizeKB: 500,
   })
 }
 
 /**
- * Compress post image (for feed)
- * 720px is enough for mobile screens — looks crisp on phones
+ * Compress post image — light (Cloudinary will optimize further)
+ * Resize to max 1280px and quality 0.85
  */
 export function compressPostImage(file: File): Promise<string> {
   return compressImage(file, {
-    maxWidth: 720,
-    maxHeight: 720,
-    quality: 0.7,
-    maxSizeKB: 200, // ~200KB per post image
+    maxWidth: 1280,
+    maxHeight: 1280,
+    quality: 0.85,
+    maxSizeKB: 1500,
   })
 }
 
 /**
- * Compress comment image (medium, inline)
- * 400px is enough for inline comment images
+ * Compress comment image — light
  */
 export function compressCommentImage(file: File): Promise<string> {
   return compressImage(file, {
-    maxWidth: 480,
-    maxHeight: 480,
-    quality: 0.65,
-    maxSizeKB: 100, // ~100KB per comment image
+    maxWidth: 800,
+    maxHeight: 800,
+    quality: 0.8,
+    maxSizeKB: 800,
   })
 }

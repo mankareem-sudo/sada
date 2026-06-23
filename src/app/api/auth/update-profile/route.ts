@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser, sanitizeText, detectXSS } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { uploadAvatar, deleteFile } from '@/lib/storage'
+import { uploadAvatar, deleteFromCloudinary } from '@/lib/storage'
 
 /**
  * PATCH /api/auth/update-profile
