@@ -7,6 +7,7 @@ import { Mic, Sparkles, Calendar } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
+import { PostsFeed } from './PostsFeed'
 import { formatArabicDate, formatCount, timeAgo } from '@/lib/format'
 import type { SadaVoiceNote } from '@/lib/types'
 
@@ -154,6 +155,20 @@ export function TodayView() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Posts Feed — مثل انستجرام */}
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            منشورات المجتمع
+          </h3>
+        </div>
+        <PostsFeed onOpenProfile={(u) => {
+          useSada.getState().setViewedUsername(u)
+          useSada.getState().setTab('profile')
+        }} />
       </div>
     </div>
   )

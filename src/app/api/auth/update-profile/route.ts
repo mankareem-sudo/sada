@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest) {
         data.avatarUrl = null
       } else if (typeof avatarUrl === 'string') {
         // Validate avatar (must be data:image/...;base64,...)
-        // Max size: 500KB encoded (~375KB decoded)
+        // Max size: 500KB encoded (after client-side compression)
         const MAX_AVATAR_SIZE = 700 * 1024 // 700KB encoded
         
         if (avatarUrl.length > MAX_AVATAR_SIZE) {

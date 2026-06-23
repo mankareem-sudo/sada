@@ -735,6 +735,10 @@ export const db = {
   report: createTableHandler('Report'),
   notification: createTableHandler('Notification'),
   supportDonation: createTableHandler('SupportDonation'),
+  // Posts system
+  post: createTableHandler('Post'),
+  postLike: createTableHandler('PostLike'),
+  postComment: createTableHandler('PostComment'),
   // For raw queries (used by migrate endpoint)
   $executeRawUnsafe: async (sql: string) => {
     // Use Supabase rpc to execute raw SQL

@@ -27,6 +27,7 @@ import { Settings, LogOut, Trash2, Save, Heart, Info, Sun, Moon, Languages, Came
 import { useSada } from '@/lib/store'
 import { toast } from 'sonner'
 import { t } from '@/lib/i18n'
+import { compressAvatar } from '@/lib/image-compress'
 
 export function SettingsModal({
   open,
@@ -61,28 +62,29 @@ export function SettingsModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Handle avatar upload
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error(language === 'ar' ? 'الملف لازم يكون صورة' : 'File must be an image')
       return
     }
     
-    // Validate file size (max 500KB)
-    if (file.size > 500 * 1024) {
-      toast.error(language === 'ar' ? 'حجم الصورة كبير جداً (الحد الأقصى 500 كيلوبايت)' : 'Image too large (max 500KB)')
+    // Accept up to 10MB, compress automatically
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(language === 'ar' ? 'حجم الصورة كبير جداً (الحد الأقصى 10 ميجا)' : 'Image too large (max 10MB)')
       return
     }
     
-    // Convert to base64
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setAvatarUrl(reader.result as string)
+    try {
+      toast.info(language === 'ar' ? 'جاري ضغط الصورة...' : 'Compressing...')
+      const compressed = await compressAvatar(file)
+      setAvatarUrl(compressed)
+      toast.success(language === 'ar' ? 'تم ضغط الصورة' : 'Image compressed')
+    } catch {
+      toast.error(language === 'ar' ? 'فشل تحميل الصورة' : 'Failed to load image')
     }
-    reader.readAsDataURL(file)
   }
 
   // Save profile
@@ -267,7 +269,7 @@ export function SettingsModal({
               className="hidden"
             />
             <p className="text-[11px] text-muted-foreground">
-              {language === 'ar' ? 'JPEG, PNG, GIF, WebP — حد أقصى 500 كيلوبايت' : 'JPEG, PNG, GIF, WebP — max 500KB'}
+              {language === 'ar' ? 'JPEG, PNG, GIF, WebP — حد أقصى 10 ميجا (بيتضغط تلقائياً)' : 'JPEG, PNG, GIF, WebP — max 10MB (auto-compressed)'}
             </p>
           </div>
 
