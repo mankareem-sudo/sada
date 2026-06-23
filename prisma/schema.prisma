@@ -17,11 +17,17 @@ model User {
   name         String
   bio          String?
   avatarColor  String      @default("#8b5cf6")
+  avatarUrl    String?
   passwordHash String?
+  passwordResetCode String?
+  passwordResetExpires DateTime?
   isAdmin      Boolean     @default(false)
   // Onboarding
   onboarded    Boolean     @default(false)
   interests    String?     // comma-separated topics
+  // Preferences
+  theme        String      @default("dark")
+  language     String      @default("ar")
   // Push (later)
   fcmToken     String?
   createdAt    DateTime    @default(now())

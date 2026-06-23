@@ -20,6 +20,7 @@ function safeNote(n: any, currentUserId?: string) {
       username: n.user.username,
       name: n.user.name,
       avatarColor: n.user.avatarColor,
+      avatarUrl: n.user.avatarUrl,
     },
     likedByMe: currentUserId
       ? n.likes?.some((l: any) => l.userId === currentUserId) ?? false

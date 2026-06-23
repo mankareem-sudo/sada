@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
       name: target.name,
       bio: target.bio,
       avatarColor: target.avatarColor,
+      avatarUrl: target.avatarUrl,
       createdAt: target.createdAt,
     },
     stats: {

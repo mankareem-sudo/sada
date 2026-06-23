@@ -150,6 +150,7 @@ export function ProfileView({ username }: { username: string | null }) {
           <Avatar
             name={profile.user.name}
             color={profile.user.avatarColor}
+            imageUrl={profile.user.avatarUrl}
             size="xl"
           />
           <div className="flex-1 min-w-0">

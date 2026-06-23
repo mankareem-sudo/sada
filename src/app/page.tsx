@@ -54,6 +54,23 @@ export default function Home() {
           if (typeof d.stats?.unreadNotifications === 'number') {
             setUnreadNotifications(d.stats.unreadNotifications)
           }
+          // Apply user's theme + language preferences
+          if (d.user.theme) {
+            useSada.getState().setTheme(d.user.theme)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('sada-theme', d.user.theme)
+              document.documentElement.classList.remove('dark', 'light')
+              document.documentElement.classList.add(d.user.theme)
+            }
+          }
+          if (d.user.language) {
+            useSada.getState().setLanguage(d.user.language)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('sada-language', d.user.language)
+              document.documentElement.lang = d.user.language
+              document.documentElement.dir = d.user.language === 'ar' ? 'rtl' : 'ltr'
+            }
+          }
         }
       })
       .catch(() => {})

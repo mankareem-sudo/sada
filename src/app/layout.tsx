@@ -87,6 +87,21 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content={APP_NAME_AR} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="application-name" content={APP_NAME} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('sada-theme') || 'dark';
+                  var lang = localStorage.getItem('sada-language') || 'ar';
+                  document.documentElement.classList.add(theme);
+                  document.documentElement.lang = lang;
+                  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
       </head>
       <body
         className={`${cairo.variable} ${tajawal.variable} antialiased bg-background text-foreground font-tajawal`}

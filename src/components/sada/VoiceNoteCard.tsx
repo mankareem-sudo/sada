@@ -179,6 +179,7 @@ export function VoiceNoteCard({
             <Avatar
               name={note.user.name}
               color={note.user.avatarColor}
+              imageUrl={note.user.avatarUrl}
               size="md"
             />
             <div className="text-right">

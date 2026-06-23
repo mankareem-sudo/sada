@@ -162,8 +162,11 @@ function safeUser(u: any) {
     name: u.name,
     bio: u.bio,
     avatarColor: u.avatarColor,
+    avatarUrl: u.avatarUrl,
     isAdmin: u.isAdmin,
     onboarded: u.onboarded,
     interests: u.interests,
+    theme: u.theme,
+    language: u.language,
   }
 }

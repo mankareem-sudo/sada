@@ -24,9 +24,12 @@ export async function GET() {
       name: user.name,
       bio: user.bio,
       avatarColor: user.avatarColor,
+      avatarUrl: user.avatarUrl,
       isAdmin: user.isAdmin,
       onboarded: user.onboarded,
       interests: user.interests,
+      theme: user.theme,
+      language: user.language,
     },
     stats: {
       followers: followersCount,

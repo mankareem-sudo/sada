@@ -6,6 +6,7 @@ interface AvatarProps {
   name: string
   color: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  imageUrl?: string | null
   className?: string
 }
 
@@ -16,8 +17,23 @@ const sizes = {
   xl: 'h-20 w-20 text-2xl',
 }
 
-export function Avatar({ name, color, size = 'md', className }: AvatarProps) {
+export function Avatar({ name, color, size = 'md', imageUrl, className }: AvatarProps) {
   const initial = (name || '?').trim().charAt(0).toUpperCase()
+  
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className={cn(
+          'rounded-full object-cover shrink-0 shadow-inner border-2 border-border/30',
+          sizes[size],
+          className
+        )}
+      />
+    )
+  }
+  
   return (
     <div
       className={cn(

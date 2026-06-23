@@ -73,6 +73,7 @@ export function Header() {
               <Avatar
                 name={user.name}
                 color={user.avatarColor}
+                imageUrl={user.avatarUrl}
                 size="sm"
               />
             </button>

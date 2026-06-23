@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import type { SadaUser, SadaPrompt, TabKey } from '@/lib/types'
+import type { Language } from '@/lib/i18n'
 
 interface SadaState {
   // Auth
@@ -54,6 +55,12 @@ interface SadaState {
   // Shared voice note modal (via ?share=ID)
   sharedNoteId: string | null
   setSharedNoteId: (id: string | null) => void
+
+  // === NEW: Theme & Language ===
+  theme: 'dark' | 'light'
+  setTheme: (t: 'dark' | 'light') => void
+  language: Language
+  setLanguage: (l: Language) => void
 }
 
 export const useSada = create<SadaState>((set) => ({
@@ -97,4 +104,10 @@ export const useSada = create<SadaState>((set) => ({
 
   sharedNoteId: null,
   setSharedNoteId: (id) => set({ sharedNoteId: id }),
+
+  // === NEW ===
+  theme: 'dark',
+  setTheme: (t) => set({ theme: t }),
+  language: 'ar',
+  setLanguage: (l) => set({ language: l }),
 }))

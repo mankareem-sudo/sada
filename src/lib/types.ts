@@ -6,9 +6,12 @@ export interface SadaUser {
   name: string
   bio?: string | null
   avatarColor: string
+  avatarUrl?: string | null
   isAdmin?: boolean
   onboarded?: boolean
   interests?: string | null
+  theme?: string
+  language?: string
 }
 
 export interface SadaPrompt {
@@ -33,6 +36,7 @@ export interface SadaVoiceNote {
     username: string
     name: string
     avatarColor: string
+    avatarUrl?: string | null
   }
   likedByMe?: boolean
   bookmarkedByMe?: boolean
@@ -76,6 +80,7 @@ export interface SadaProfile {
     name: string
     bio?: string | null
     avatarColor: string
+    avatarUrl?: string | null
     createdAt: string
   }
   stats: {
