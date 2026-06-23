@@ -21,6 +21,7 @@ export function DiscoverView({
   const [hasMore, setHasMore] = useState(true)
   const [prompts, setPrompts] = useState<SadaPrompt[]>([])
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'voice' | 'text'>('all')
 
   const load = useCallback(
     async (reset = false, promptId: string | null = null) => {
@@ -71,32 +72,53 @@ export function DiscoverView({
         </p>
       </div>
 
-      {/* Prompt selector */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-        <button
-          onClick={() => setSelectedPrompt(null)}
-          className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition border ${
-            !selectedPrompt
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-card border-border hover:border-primary/50'
-          }`}
-        >
-          الكل
-        </button>
-        {prompts.map((p) => (
+      {/* Prompt selector + Filters */}
+      <div className="space-y-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
           <button
-            key={p.id}
-            onClick={() => setSelectedPrompt(p.id)}
-            className={`shrink-0 px-3 py-2 rounded-full text-xs font-medium transition border flex items-center gap-1.5 max-w-[200px] ${
-              selectedPrompt === p.id
+            onClick={() => setSelectedPrompt(null)}
+            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition border ${
+              !selectedPrompt
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-card border-border hover:border-primary/50'
             }`}
           >
-            <Calendar className="h-3 w-3 shrink-0" />
-            <span className="truncate">{p.text}</span>
+            الكل
           </button>
-        ))}
+          {prompts.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedPrompt(p.id)}
+              className={`shrink-0 px-3 py-2 rounded-full text-xs font-medium transition border flex items-center gap-1.5 max-w-[200px] ${
+                selectedPrompt === p.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card border-border hover:border-primary/50'
+              }`}
+            >
+              <Calendar className="h-3 w-3 shrink-0" />
+              <span className="truncate">{p.text}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Type filters */}
+        <div className="flex gap-2">
+          {[
+            { key: 'all', label: 'الكل' },
+            { key: 'voice', label: '🎙️ أصوات' },
+            { key: 'text', label: '📝 نصوص' },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key as any)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                filter === f.key ? 'bg-primary/20 text-primary' : 'bg-muted/30 text-muted-foreground'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Notes */}

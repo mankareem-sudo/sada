@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,22 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
     } catch { toast.error('فشل') }
   }
 
+  // Draft saving
+  useEffect(() => {
+    if (open) {
+      const draft = localStorage.getItem('sada-post-draft')
+      if (draft) {
+        try { const d = JSON.parse(draft); setText(d.text || ''); setImage(d.image || null) } catch {}
+      }
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open && (text || image)) {
+      localStorage.setItem('sada-post-draft', JSON.stringify({ text, image }))
+    }
+  }, [text, image, open])
+
   const submit = async () => {
     if (!text.trim() && !image) return
     setLoading(true)
@@ -47,6 +63,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
       toast.success('تم النشر 🎉')
       setText('')
       setImage(null)
+      localStorage.removeItem('sada-post-draft')
       setOpen(false)
       onPosted?.()
     } catch { toast.error('فشل') } finally { setLoading(false) }

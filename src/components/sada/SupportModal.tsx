@@ -19,6 +19,13 @@ import { useSada } from '@/lib/store'
 
 const PRESET_AMOUNTS = [2, 5, 10, 25]
 
+const CURRENCIES = [
+  { code: 'USD', symbol: '$', label: 'دولار' },
+  { code: 'EGP', symbol: 'ج.م', label: 'جنيه مصري' },
+  { code: 'SAR', symbol: 'ر.س', label: 'ريال سعودي' },
+  { code: 'AED', symbol: 'د.إ', label: 'درهم إماراتي' },
+]
+
 // Replace these with your actual donation links later
 const DONATION_LINKS = [
   {
@@ -57,6 +64,7 @@ export function SupportModal({
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [amount, setAmount] = useState(5)
+  const [currency, setCurrency] = useState('USD')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [stats, setStats] = useState<{ totalAmount: number; count: number } | null>(null)
@@ -152,7 +160,7 @@ export function SupportModal({
           </div>
 
           <div>
-            <Label className="text-xs mb-1.5 block">المبلغ (USD)</Label>
+            <Label className="text-xs mb-1.5 block">المبلغ</Label>
             <div className="grid grid-cols-4 gap-2 mb-2">
               {PRESET_AMOUNTS.map((a) => (
                 <button
@@ -164,18 +172,30 @@ export function SupportModal({
                       : 'bg-card border-border hover:border-primary/50'
                   }`}
                 >
-                  ${a}
+                  {CURRENCIES.find(c => c.code === currency)?.symbol}{a}
                 </button>
               ))}
             </div>
-            <Input
-              type="number"
-              min={1}
-              max={1000}
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value) || 0)}
-              dir="ltr"
-            />
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={1000}
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value) || 0)}
+                dir="ltr"
+                className="flex-1"
+              />
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-card border border-border rounded-lg px-2 text-sm"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -211,7 +231,7 @@ export function SupportModal({
                   <div className="font-medium">{link.name}</div>
                   <div className="text-xs opacity-90">{link.description}</div>
                 </div>
-                <div className="font-bold">${amount}</div>
+                <div className="font-bold">{CURRENCIES.find(c => c.code === currency)?.symbol}{amount}</div>
               </button>
             )
           })}

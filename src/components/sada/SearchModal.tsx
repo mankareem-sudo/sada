@@ -27,6 +27,7 @@ export function SearchModal({
   const [q, setQ] = useState('')
   const [result, setResult] = useState<SearchResult>({ users: [], voiceNotes: [] })
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'all' | 'users' | 'posts' | 'voice'>('all')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const search = useCallback(async (query: string) => {
@@ -67,6 +68,8 @@ export function SearchModal({
   }, [q, search])
 
   const hasResults = result.users.length > 0 || result.voiceNotes.length > 0
+  const filteredUsers = activeTab === 'all' || activeTab === 'users' ? result.users : []
+  const filteredVoice = activeTab === 'all' || activeTab === 'voice' ? result.voiceNotes : []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,6 +97,27 @@ export function SearchModal({
           </div>
         </div>
 
+        {/* Tabs */}
+        {q.trim() && (
+          <div className="flex gap-1 p-2 border-b border-border/30 bg-muted/20">
+            {[
+              { key: 'all', label: 'الكل' },
+              { key: 'users', label: 'أشخاص' },
+              { key: 'voice', label: 'أصوات' },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key as any)}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition ${
+                  activeTab === t.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Results */}
         <div className="overflow-y-auto flex-1 p-4 space-y-4">
           {!q.trim() ? (
@@ -109,14 +133,14 @@ export function SearchModal({
             </div>
           ) : (
             <>
-              {result.users.length > 0 && (
+              {filteredUsers.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
                     <UserIcon className="h-3 w-3" />
-                    أشخاص ({result.users.length})
+                    أشخاص ({filteredUsers.length})
                   </h3>
                   <div className="space-y-1">
-                    {result.users.map((u) => (
+                    {filteredUsers.map((u) => (
                       <button
                         key={u.id}
                         onClick={() => {
@@ -147,14 +171,14 @@ export function SearchModal({
                 </div>
               )}
 
-              {result.voiceNotes.length > 0 && (
+              {filteredVoice.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
                     <Mic className="h-3 w-3" />
-                    أصداء ({result.voiceNotes.length})
+                    أصداء ({filteredVoice.length})
                   </h3>
                   <div className="space-y-2">
-                    {result.voiceNotes.map((n) => (
+                    {filteredVoice.map((n) => (
                       <div
                         key={n.id}
                         className="p-3 rounded-xl border border-border bg-card/50"
