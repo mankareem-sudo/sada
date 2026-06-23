@@ -95,6 +95,10 @@ export function AuthScreen() {
       }
       setUser(data.user)
       setAuthLoading(false)
+      // Set signup time for email verification banner
+      if (mode === 'signup') {
+        localStorage.setItem('sada-signup-time', String(Date.now()))
+      }
       toast.success(t('auth.welcome', language))
     } catch {
       toast.error(t('error.network', language))

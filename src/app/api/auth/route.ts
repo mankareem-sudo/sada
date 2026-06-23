@@ -12,6 +12,7 @@ import {
 import { ensureSeedPrompts } from '@/lib/prompts'
 import { hashPassword, verifyPassword } from '@/lib/password'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { sendVerificationEmail } from '@/lib/email'
 
 const AVATAR_COLORS = [
   '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
@@ -119,6 +120,15 @@ export async function POST(req: NextRequest) {
       const token = await createSession(user.id, req)
       await setSessionCookie(token)
       await ensureSeedPrompts()
+      // Send email verification code
+      try {
+        const verifyCode = Math.floor(100000 + Math.random() * 900000).toString()
+        await db.user.update({
+          where: { id: user.id },
+          data: { passwordResetCode: verifyCode, passwordResetExpires: new Date(Date.now() + 15 * 60 * 1000) },
+        })
+        sendVerificationEmail(normalizedEmail, verifyCode, cleanName).catch(() => {})
+      } catch {}
       return NextResponse.json({ user: safeUser(user) })
     } else {
       // login — verify password

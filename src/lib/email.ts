@@ -156,6 +156,49 @@ export async function sendPasswordResetEmail(
 }
 
 /**
+ * Send email verification code
+ */
+export async function sendVerificationEmail(
+  to: string,
+  code: string,
+  name: string
+): Promise<boolean> {
+  const subject = 'صدى — تأكيد البريد الإلكتروني'
+  const text = `مرحباً ${name}،
+
+كود تأكيد البريد الإلكتروني بتاعك في صدى هو: ${code}
+
+الكود ده صالح لمدة 15 دقيقة فقط.
+
+مع تحيات،
+فريق صدى`
+
+  const html = `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
+  <div style="max-width:480px;margin:0 auto;padding:40px 20px;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
+      <h1 style="color:#fff;font-size:24px;margin:16px 0 8px;">صدى</h1>
+    </div>
+    <div style="background:#15121f;border:1px solid #2a2440;border-radius:16px;padding:32px;">
+      <h2 style="color:#fff;font-size:18px;margin:0 0 16px;">تأكيد البريد الإلكتروني</h2>
+      <p style="color:#9ca3af;font-size:14px;line-height:1.6;margin:0 0 24px;">مرحباً ${name}، استخدم الكود ده لتأكيد بريدك:</p>
+      <div style="background:#1c1830;border:2px dashed #8b5cf6;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#8b5cf6;font-family:'Courier New',monospace;">${code}</div>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;">الكود صالح لمدة 15 دقيقة.</p>
+    </div>
+  </div>
+</body>
+</html>`
+
+  return sendEmail({ to, subject, text, html })
+}
+
+/**
  * Send welcome email (after signup)
  */
 export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
