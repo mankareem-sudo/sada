@@ -9,6 +9,7 @@ import { Mic, Sparkles, Shield, Users, Sun, Moon, Mail, KeyRound, ArrowRight } f
 import { useSada } from '@/lib/store'
 import { toast } from 'sonner'
 import { t } from '@/lib/i18n'
+import { GoogleLoginButton } from './GoogleLoginButton'
 
 type Mode = 'login' | 'signup'
 type View = 'auth' | 'forgot' | 'verify' | 'reset'
@@ -58,6 +59,33 @@ export function AuthScreen() {
       localStorage.setItem('sada-theme', newTheme)
       document.documentElement.classList.remove('dark', 'light')
       document.documentElement.classList.add(newTheme)
+    }
+  }
+
+  // Google login handler
+  const handleGoogleLogin = async (credential: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'فشل تسجيل الدخول بـ Google')
+        return
+      }
+      setUser(data.user)
+      setAuthLoading(false)
+      if (data.needsOnboarding) {
+        localStorage.setItem('sada-signup-time', String(Date.now()))
+      }
+      toast.success(t('auth.welcome', language))
+    } catch {
+      toast.error(t('error.network', language))
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -269,7 +297,19 @@ export function AuthScreen() {
                 </button>
               </div>
 
-              <form onSubmit={submit} className="space-y-4">
+              {/* Google Login */}
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-card px-2 text-muted-foreground">أو</span>
+                </div>
+              </div>
+
+              <GoogleLoginButton onSuccess={handleGoogleLogin} />
+
+              <form onSubmit={submit} className="space-y-4 mt-4">
                 {mode === 'signup' && (
                   <>
                     <div className="space-y-1.5">
