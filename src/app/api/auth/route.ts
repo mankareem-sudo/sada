@@ -115,12 +115,13 @@ export async function POST(req: NextRequest) {
           username: cleanUsername,
           avatarColor: pickColor(cleanUsername),
           passwordHash,
+          emailVerified: false,
         },
       })
       const token = await createSession(user.id, req)
       await setSessionCookie(token)
       await ensureSeedPrompts()
-      // Send email verification code
+      // Send email verification code IMMEDIATELY
       try {
         const verifyCode = Math.floor(100000 + Math.random() * 900000).toString()
         await db.user.update({
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
         })
         sendVerificationEmail(normalizedEmail, verifyCode, cleanName).catch(() => {})
       } catch {}
-      return NextResponse.json({ user: safeUser(user) })
+      return NextResponse.json({ user: safeUser(user), needsEmailVerification: true })
     } else {
       // login — verify password
       const user = await db.user.findUnique({
@@ -178,5 +179,6 @@ function safeUser(u: any) {
     interests: u.interests,
     theme: u.theme,
     language: u.language,
+    emailVerified: u.emailVerified,
   }
 }

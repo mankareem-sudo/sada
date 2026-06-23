@@ -66,12 +66,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'الكود انتهت صلاحيته' }, { status: 400 })
   }
 
-  // Clear the code — we don't have an emailVerified column, so we'll use onboarded as proxy
-  // Actually, let's just clear the code. The email is considered verified.
+  // Set emailVerified = true and clear the code
   await db.user.update({
     where: { id: user.id },
-    data: { passwordResetCode: null, passwordResetExpires: null },
+    data: { passwordResetCode: null, passwordResetExpires: null, emailVerified: true },
   })
 
-  return NextResponse.json({ ok: true, message: 'تم تأكيد البريد الإلكتروني' })
+  return NextResponse.json({ ok: true, message: 'تم تأكيد البريد الإلكتروني ✅' })
 }

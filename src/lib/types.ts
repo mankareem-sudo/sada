@@ -12,6 +12,7 @@ export interface SadaUser {
   interests?: string | null
   theme?: string
   language?: string
+  emailVerified?: boolean
 }
 
 export interface SadaPrompt {

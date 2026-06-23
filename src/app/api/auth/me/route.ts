@@ -30,6 +30,7 @@ export async function GET() {
       interests: user.interests,
       theme: user.theme,
       language: user.language,
+      emailVerified: user.emailVerified,
     },
     stats: {
       followers: followersCount,

@@ -19,7 +19,7 @@ import { SearchModal } from '@/components/sada/SearchModal'
 import { SupportModal } from '@/components/sada/SupportModal'
 import { SettingsModal } from '@/components/sada/SettingsModal'
 import { OnboardingModal } from '@/components/sada/OnboardingModal'
-import { EmailVerificationBanner } from '@/components/sada/EmailVerificationBanner'
+import { EmailVerificationGate } from '@/components/sada/EmailVerificationGate'
 import { CookieConsent } from '@/components/sada/CookieConsent'
 import { FollowListModal } from '@/components/sada/FollowListModal'
 import { SharedNoteModal } from '@/components/sada/SharedNoteModal'
@@ -126,6 +126,11 @@ export default function Home() {
     return <AuthScreen />
   }
 
+  // BLOCK: If email not verified → show verification gate (no access to app)
+  if (!user.emailVerified) {
+    return <EmailVerificationGate />
+  }
+
   const onOpenProfile = (username: string) => {
     useSada.getState().setViewedUsername(username)
     setTab('profile')
@@ -135,12 +140,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        {tab === 'today' && (
-          <>
-            <EmailVerificationBanner />
-            <TodayView />
-          </>
-        )}
+        {tab === 'today' && <TodayView />}
         {tab === 'feed' && <FeedView onOpenProfile={onOpenProfile} />}
         {tab === 'discover' && <DiscoverView onOpenProfile={onOpenProfile} />}
         {tab === 'trending' && (
