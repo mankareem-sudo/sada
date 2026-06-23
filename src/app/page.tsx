@@ -12,6 +12,7 @@ import { TrendingView } from '@/components/sada/TrendingView'
 import { BookmarksView } from '@/components/sada/BookmarksView'
 import { NotificationsView } from '@/components/sada/NotificationsView'
 import { ProfileView } from '@/components/sada/ProfileView'
+import { MessagesView } from '@/components/sada/MessagesView'
 import { AdminPanel } from '@/components/sada/AdminPanel'
 import { VoiceRecorder } from '@/components/sada/VoiceRecorder'
 import { SearchModal } from '@/components/sada/SearchModal'
@@ -144,6 +145,7 @@ export default function Home() {
         {tab === 'notifications' && (
           <NotificationsView onOpenProfile={onOpenProfile} />
         )}
+        {tab === 'messages' && <MessagesView />}
         {tab === 'profile' && <ProfileView username={viewedUsername} />}
         {tab === 'admin' && user.isAdmin && <AdminPanel />}
       </main>

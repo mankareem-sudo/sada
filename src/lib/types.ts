@@ -102,6 +102,7 @@ export type TabKey =
   | 'profile'
   | 'bookmarks'
   | 'admin'
+  | 'messages'
 
 export type ReportReason = 'religion' | 'politics' | 'insult' | 'spam' | 'other'
 

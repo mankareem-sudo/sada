@@ -19,21 +19,27 @@ export async function POST(req: NextRequest) {
   if (!rateCheck.allowed && rateCheck.response) return rateCheck.response
 
   const body = await req.json()
-  const { type, content, imageUrl, voiceNoteId } = body as {
+  const { type, content, imageUrl, voiceNoteId, privacy } = body as {
     type?: string
     content?: string
     imageUrl?: string
     voiceNoteId?: string
+    privacy?: string
   }
 
   if (!type || !['text', 'image', 'voice'].includes(type)) {
     return NextResponse.json({ error: 'نوع البوست غير صحيح' }, { status: 400 })
   }
 
+  // Validate privacy
+  const validPrivacy = ['public', 'friends', 'private'].includes(privacy || '') 
+    ? privacy! : 'public'
+
   const data: any = {
     id: generateId(),
     userId: user.id,
     type,
+    privacy: validPrivacy,
     createdAt: new Date().toISOString(),
   }
 

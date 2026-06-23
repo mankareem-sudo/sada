@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Image as ImageIcon, X, Loader2, Send, Type, Mic } from 'lucide-react'
+import { Image as ImageIcon, X, Loader2, Send, Type, Mic, Globe, Users, Lock } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { compressPostImage } from '@/lib/image-compress'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
   const [text, setText] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public')
   const fileRef = useRef<HTMLInputElement>(null)
   const user = useSada((s) => s.user)
 
@@ -39,6 +40,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
           type: image ? 'image' : 'text',
           content: text.trim() || undefined,
           imageUrl: image || undefined,
+          privacy,
         }),
       })
       if (!res.ok) { toast.error('فشل النشر'); return }
@@ -117,6 +119,30 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
               <ImageIcon className="h-5 w-5 text-primary" />
               <input type="file" accept="image/*" onChange={handleImage} className="hidden" />
             </label>
+            {/* Privacy selector */}
+            <div className="flex gap-1 items-center bg-muted/30 rounded-full p-1">
+              <button
+                onClick={() => setPrivacy('public')}
+                className={`p-1.5 rounded-full transition ${privacy === 'public' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}
+                title="عام"
+              >
+                <Globe className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setPrivacy('friends')}
+                className={`p-1.5 rounded-full transition ${privacy === 'friends' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}
+                title="الأصدقاء"
+              >
+                <Users className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setPrivacy('private')}
+                className={`p-1.5 rounded-full transition ${privacy === 'private' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}
+                title="خاص"
+              >
+                <Lock className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <Button
             onClick={submit}

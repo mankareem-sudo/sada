@@ -8,8 +8,7 @@ import {
   User,
   Plus,
   Bell,
-  Flame,
-  Bookmark,
+  MessageSquare,
   Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -20,7 +19,6 @@ export function BottomNav() {
   const setTab = useSada((s) => s.setTab)
   const setRecorderOpen = useSada((s) => s.setRecorderOpen)
   const setViewedUsername = useSada((s) => s.setViewedUsername)
-  const setSearchOpen = useSada((s) => s.setSearchOpen)
   const unread = useSada((s) => s.unreadNotifications)
   const user = useSada((s) => s.user)
 
@@ -29,15 +27,14 @@ export function BottomNav() {
     setTab(t)
   }
 
-  // Build tab list dynamically based on admin status
   const leftTabs: { key: TabKey; label: string; icon: any }[] = [
     { key: 'today', label: 'اليوم', icon: Sparkles },
     { key: 'feed', label: 'الرئيسية', icon: Home },
-    { key: 'trending', label: 'رائج', icon: Flame },
+    { key: 'discover', label: 'اكتشف', icon: Compass },
   ]
 
   const rightTabs: { key: TabKey; label: string; icon: any }[] = [
-    { key: 'discover', label: 'اكتشف', icon: Compass },
+    { key: 'messages', label: 'رسايل', icon: MessageSquare },
     { key: 'notifications', label: 'إشعارات', icon: Bell },
     { key: 'profile', label: 'حسابي', icon: User },
   ]
@@ -63,7 +60,7 @@ export function BottomNav() {
             ))}
           </div>
 
-          {/* Center record button — raised above the bar */}
+          {/* Center record button */}
           <button
             onClick={() => setRecorderOpen(true)}
             className="shrink-0 -mt-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-xl shadow-primary/40 hover:scale-110 active:scale-95 transition border-4 border-background z-10"
