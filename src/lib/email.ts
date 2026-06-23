@@ -23,7 +23,9 @@ function getTransporter(): nodemailer.Transporter {
   }
   
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: gmailUser,
       pass: gmailPass,
@@ -33,7 +35,7 @@ function getTransporter(): nodemailer.Transporter {
     maxConnections: 1,
     rateLimit: true,
     maxMessages: 50,
-  })
+  } as any)
   
   return transporter
 }
