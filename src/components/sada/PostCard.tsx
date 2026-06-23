@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag } from 'lucide-react'
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag, Pencil, Pin, Ban } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { formatCount, timeAgo } from '@/lib/format'
 import { toast } from 'sonner'
@@ -66,6 +66,9 @@ export function PostCard({
   const [moreMenu, setMoreMenu] = useState(false)
   const [saved, setSaved] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [editingPost, setEditingPost] = useState(false)
+  const [editText, setEditText] = useState(post.content || '')
+  const [isPinned, setIsPinned] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [imageViewer, setImageViewer] = useState<string | null>(null)
   const user = useSada((s) => s.user)
@@ -176,6 +179,53 @@ export function PostCard({
     } catch {}
   }
 
+  const saveEdit = async () => {
+    try {
+      const res = await fetch('/api/posts/edit', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: post.id, content: editText }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success('تم التعديل')
+        setEditingPost(false)
+        window.location.reload()
+      } else {
+        toast.error(data.error || 'فشل')
+      }
+    } catch { toast.error('فشل') }
+  }
+
+  const togglePin = async () => {
+    try {
+      const res = await fetch('/api/posts/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: post.id }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setIsPinned(data.isPinned)
+        toast.success(data.isPinned ? 'تم التثبيت' : 'تم إلغاء التثبيت')
+      }
+    } catch {}
+  }
+
+  const blockUser = async () => {
+    if (!post.user?.id) return
+    if (!confirm('متأكد من حظر هذا المستخدم؟')) return
+    try {
+      await fetch('/api/users/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: post.user.id, action: 'block' }),
+      })
+      toast.success('تم الحظر')
+      window.location.reload()
+    } catch {}
+  }
+
   return (
     <>
       <motion.div
@@ -220,6 +270,24 @@ export function PostCard({
                           <Flag className="h-4 w-4" /> إبلاغ
                         </button>
                       )}
+                      {/* Edit — only on own posts within 15 min */}
+                      {user.id === post.user?.id && (
+                        <button onClick={() => { setMoreMenu(false); setEditingPost(true) }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm">
+                          <Pencil className="h-4 w-4" /> تعديل
+                        </button>
+                      )}
+                      {/* Pin — only on own posts */}
+                      {user.id === post.user?.id && (
+                        <button onClick={() => { setMoreMenu(false); togglePin() }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm">
+                          <Pin className="h-4 w-4" /> {isPinned ? 'إلغاء التثبيت' : 'تثبيت'}
+                        </button>
+                      )}
+                      {/* Block — only on others' posts */}
+                      {user.id !== post.user?.id && (
+                        <button onClick={() => { setMoreMenu(false); blockUser() }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm text-destructive">
+                          <Ban className="h-4 w-4" /> حظر
+                        </button>
+                      )}
                       {/* Delete — only on own posts */}
                       {user.id === post.user?.id && (
                         <button onClick={() => { setMoreMenu(false); deletePost() }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm text-destructive">
@@ -234,10 +302,28 @@ export function PostCard({
           </div>
 
           {/* Content */}
-          {post.content && (
+          {editingPost ? (
             <div className="px-4 pb-3">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full bg-muted/40 rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-primary resize-none"
+                rows={3}
+                maxLength={2000}
+                autoFocus
+              />
+              <div className="flex gap-2 mt-2 justify-end">
+                <Button size="sm" variant="outline" onClick={() => setEditingPost(false)}>إلغاء</Button>
+                <Button size="sm" onClick={saveEdit}>حفظ</Button>
+              </div>
             </div>
+          ) : (
+            post.content && (
+              <div className="px-4 pb-3">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                {(post as any).isEdited && <span className="text-[10px] text-muted-foreground">معدّل</span>}
+              </div>
+            )
           )}
 
           {/* Image */}
