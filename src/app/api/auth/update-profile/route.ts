@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser, sanitizeText, detectXSS } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { uploadAvatar, deleteFile } from '@/lib/storage'
 
 /**
  * PATCH /api/auth/update-profile
  * body: { name?, bio?, avatarUrl? }
  * 
- * Updates the current user's profile.
- * Avatar is stored as base64 data URI (max 500KB after encoding).
+ * Avatar is uploaded to Supabase Storage (not base64 in DB).
+ * Accepts up to 10MB, compressed on client side.
  */
 export async function PATCH(req: NextRequest) {
   const user = await getCurrentUser()
@@ -16,7 +17,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
   }
   
-  // Rate limit: 10 per hour per user
   const rateCheck = checkRateLimit(req, 'comment', user.id)
   if (!rateCheck.allowed && rateCheck.response) {
     return rateCheck.response
@@ -52,33 +52,44 @@ export async function PATCH(req: NextRequest) {
       data.bio = cleanBio
     }
     
-    // Update avatar
+    // Update avatar — upload to Storage
     if (avatarUrl !== undefined) {
       if (avatarUrl === null) {
         // Remove avatar
         data.avatarUrl = null
       } else if (typeof avatarUrl === 'string') {
-        // Validate avatar (must be data:image/...;base64,...)
-        // Max size: 500KB encoded (after client-side compression)
-        const MAX_AVATAR_SIZE = 700 * 1024 // 700KB encoded
-        
-        if (avatarUrl.length > MAX_AVATAR_SIZE) {
-          return NextResponse.json(
-            { error: 'حجم الصورة كبير جداً (الحد الأقصى 500 كيلوبايت)' },
-            { status: 400 }
-          )
+        // Check if it's a data URI (new upload) or already a URL
+        if (avatarUrl.startsWith('data:image/')) {
+          // Validate size (max 1MB encoded after client compression)
+          if (avatarUrl.length > 1.5 * 1024 * 1024) {
+            return NextResponse.json(
+              { error: 'حجم الصورة كبير جداً' },
+              { status: 400 }
+            )
+          }
+          
+          // Validate format
+          const match = avatarUrl.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,([A-Za-z0-9+/=]+)$/)
+          if (!match) {
+            return NextResponse.json(
+              { error: 'صيغة الصورة غير صحيحة' },
+              { status: 400 }
+            )
+          }
+          
+          // Upload to Supabase Storage
+          const publicUrl = await uploadAvatar(avatarUrl)
+          if (!publicUrl) {
+            return NextResponse.json(
+              { error: 'فشل رفع الصورة' },
+              { status: 500 }
+            )
+          }
+          data.avatarUrl = publicUrl
+        } else if (avatarUrl.startsWith('http')) {
+          // Already a URL (no change needed)
+          data.avatarUrl = avatarUrl
         }
-        
-        // Validate format
-        const match = avatarUrl.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,([A-Za-z0-9+/=]+)$/)
-        if (!match) {
-          return NextResponse.json(
-            { error: 'صيغة الصورة غير صحيحة (JPEG, PNG, GIF, WebP فقط)' },
-            { status: 400 }
-          )
-        }
-        
-        data.avatarUrl = avatarUrl
       }
     }
     

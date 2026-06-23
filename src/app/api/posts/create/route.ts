@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, generateId } from '@/lib/db'
 import { getCurrentUser, sanitizeText, detectXSS, validateAudioData } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { uploadPostImage } from '@/lib/storage'
 
 /**
  * POST /api/posts/create
  * body: { type: 'text'|'image'|'voice', content?, imageUrl?, voiceNoteId? }
+ * Images are uploaded to Supabase Storage (not base64 in DB).
  */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
@@ -44,16 +46,26 @@ export async function POST(req: NextRequest) {
     data.content = cleanContent
   }
 
-  // Image (base64, max 2MB after compression on client)
+  // Image — upload to Storage
   if (imageUrl) {
-    const match = imageUrl.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,([A-Za-z0-9+/=]+)$/)
-    if (!match) {
-      return NextResponse.json({ error: 'صيغة الصورة غير صحيحة' }, { status: 400 })
+    if (imageUrl.startsWith('data:image/')) {
+      const match = imageUrl.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,([A-Za-z0-9+/=]+)$/)
+      if (!match) {
+        return NextResponse.json({ error: 'صيغة الصورة غير صحيحة' }, { status: 400 })
+      }
+      if (imageUrl.length > 2 * 1024 * 1024) {
+        return NextResponse.json({ error: 'حجم الصورة كبير جداً' }, { status: 400 })
+      }
+      
+      // Upload to Supabase Storage
+      const publicUrl = await uploadPostImage(imageUrl)
+      if (!publicUrl) {
+        return NextResponse.json({ error: 'فشل رفع الصورة' }, { status: 500 })
+      }
+      data.imageUrl = publicUrl
+    } else if (imageUrl.startsWith('http')) {
+      data.imageUrl = imageUrl
     }
-    if (imageUrl.length > 3 * 1024 * 1024) {
-      return NextResponse.json({ error: 'حجم الصورة كبير جداً' }, { status: 400 })
-    }
-    data.imageUrl = imageUrl
   }
 
   // Voice note reference
