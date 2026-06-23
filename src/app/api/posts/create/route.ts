@@ -35,11 +35,21 @@ export async function POST(req: NextRequest) {
   const validPrivacy = ['public', 'friends', 'private'].includes(privacy || '') 
     ? privacy! : 'public'
 
+  // Extract hashtags from content
+  let hashtags: string | null = null
+  if (content) {
+    const tags = content.match(/#[\u0600-\u06FFa-zA-Z0-9_]+/g)
+    if (tags && tags.length > 0) {
+      hashtags = tags.map(t => t.slice(1).toLowerCase()).join(',')
+    }
+  }
+
   const data: any = {
     id: generateId(),
     userId: user.id,
     type,
     privacy: validPrivacy,
+    hashtags,
     createdAt: new Date().toISOString(),
   }
 

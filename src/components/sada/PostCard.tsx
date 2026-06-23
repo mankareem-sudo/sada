@@ -63,6 +63,9 @@ export function PostCard({
   const [loadingComments, setLoadingComments] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [commentImage, setCommentImage] = useState<string | null>(null)
+  const [commentVoice, setCommentVoice] = useState<string | null>(null)
+  const [recordingComment, setRecordingComment] = useState(false)
+  const [commentRecorder, setCommentRecorder] = useState<MediaRecorder | null>(null)
   const [moreMenu, setMoreMenu] = useState(false)
   const [saved, setSaved] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -112,7 +115,7 @@ export function PostCard({
   }, [showComments, comments.length, loadComments])
 
   const submitComment = async () => {
-    if (!commentText.trim() && !commentImage) return
+    if (!commentText.trim() && !commentImage && !commentVoice) return
     setSubmitting(true)
     try {
       const res = await fetch('/api/posts/comments', {
@@ -122,6 +125,8 @@ export function PostCard({
           postId: post.id,
           content: commentText.trim() || undefined,
           imageUrl: commentImage || undefined,
+          voiceData: commentVoice || undefined,
+          voiceDuration: commentVoice ? 30 : undefined,
         }),
       })
       const data = await res.json()
@@ -129,6 +134,7 @@ export function PostCard({
       setComments((prev) => [...prev, data])
       setCommentText('')
       setCommentImage(null)
+      setCommentVoice(null)
       toast.success('تم النشر')
     } catch { toast.error('فشل') } finally { setSubmitting(false) }
   }
@@ -141,6 +147,41 @@ export function PostCard({
       const compressed = await compressCommentImage(file)
       setCommentImage(compressed)
     } catch { toast.error('فشل تحميل الصورة') }
+  }
+
+  const startVoiceComment = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks: Blob[] = []
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        const reader = new FileReader()
+        reader.onloadend = () => { setCommentVoice(reader.result as string) }
+        reader.readAsDataURL(blob)
+        stream.getTracks().forEach(t => t.stop())
+      }
+      recorder.start()
+      setCommentRecorder(recorder)
+      setRecordingComment(true)
+      // Auto-stop after 30 seconds
+      setTimeout(() => {
+        if (recorder.state === 'recording') {
+          recorder.stop()
+          setRecordingComment(false)
+        }
+      }, 30000)
+    } catch {
+      toast.error('مفيش ميكروفون متاح')
+    }
+  }
+
+  const stopVoiceComment = () => {
+    if (commentRecorder && commentRecorder.state === 'recording') {
+      commentRecorder.stop()
+    }
+    setRecordingComment(false)
   }
 
   const toggleSave = async () => {
@@ -320,8 +361,22 @@ export function PostCard({
           ) : (
             post.content && (
               <div className="px-4 pb-3">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {(post.content || '').split(/(\s+)/).map((word, i) => {
+                    if (word.startsWith('#')) {
+                      return <span key={i} className="text-primary font-medium cursor-pointer hover:underline">{word}</span>
+                    }
+                    return word
+                  })}
+                </p>
                 {(post as any).isEdited && <span className="text-[10px] text-muted-foreground">معدّل</span>}
+                {(post as any).hashtags && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {(post as any).hashtags.split(',').map((tag: string, i: number) => (
+                      <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">#{tag}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           )}
@@ -388,6 +443,21 @@ export function PostCard({
                             </button>
                           </div>
                         )}
+                        {commentVoice && (
+                          <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-2">
+                            <VoicePlayer src={commentVoice} durationSec={30} className="flex-1" />
+                            <button onClick={() => setCommentVoice(null)} className="p-1 hover:bg-destructive/20 rounded-full">
+                              <X className="h-3 w-3 text-destructive" />
+                            </button>
+                          </div>
+                        )}
+                        {recordingComment && (
+                          <div className="flex items-center gap-2 bg-red-500/10 rounded-lg p-2 text-red-500 text-xs">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                            جاري التسجيل... اضغط للإيقاف
+                            <button onClick={stopVoiceComment} className="mr-auto px-2 py-0.5 rounded bg-red-500 text-white text-[10px]">إيقاف</button>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -401,7 +471,13 @@ export function PostCard({
                             <ImageIcon className="h-4 w-4 text-muted-foreground" />
                             <input type="file" accept="image/*" onChange={handleCommentImage} className="hidden" />
                           </label>
-                          <Button size="sm" onClick={submitComment} disabled={submitting || (!commentText.trim() && !commentImage)} className="rounded-full h-9 w-9 p-0">
+                          <button
+                            onClick={recordingComment ? stopVoiceComment : startVoiceComment}
+                            className={`p-2 rounded-full transition ${recordingComment ? 'bg-red-500 text-white animate-pulse' : 'hover:bg-muted/40 text-muted-foreground'}`}
+                          >
+                            <Mic className="h-4 w-4" />
+                          </button>
+                          <Button size="sm" onClick={submitComment} disabled={submitting || (!commentText.trim() && !commentImage && !commentVoice)} className="rounded-full h-9 w-9 p-0">
                             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                           </Button>
                         </div>
