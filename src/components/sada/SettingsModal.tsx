@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Settings, LogOut, Trash2, Save, Heart, Info, Sun, Moon, Languages, Camera, KeyRound, X } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { useSada } from '@/lib/store'
 import { toast } from 'sonner'
 import { t } from '@/lib/i18n'
@@ -387,6 +388,32 @@ export function SettingsModal({
                 <KeyRound className="h-4 w-4" />
                 {t('settings.changePassword', language)}
               </Button>
+
+              {/* Notification settings */}
+              <div className="space-y-2 pt-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase">
+                  {language === 'ar' ? 'إعدادات الإشعارات' : 'Notification Settings'}
+                </Label>
+                {[
+                  { key: 'notifLikes', label: language === 'ar' ? 'الإعجابات' : 'Likes' },
+                  { key: 'notifComments', label: language === 'ar' ? 'التعليقات' : 'Comments' },
+                  { key: 'notifFollows', label: language === 'ar' ? 'المتابعات' : 'Follows' },
+                  { key: 'notifMessages', label: language === 'ar' ? 'الرسايل' : 'Messages' },
+                  { key: 'notifFriendRequests', label: language === 'ar' ? 'طلبات الصداقة' : 'Friend Requests' },
+                ].map((item) => (
+                  <NotificationToggle key={item.key} itemKey={item.key} label={item.label} />
+                ))}
+              </div>
+
+              {/* Account export */}
+              <Button
+                variant="outline"
+                onClick={() => window.open('/api/account/export', '_blank')}
+                className="w-full gap-2"
+              >
+                <Info className="h-4 w-4" />
+                {language === 'ar' ? 'تنزيل بياناتي' : 'Export My Data'}
+              </Button>
             </div>
 
             {/* Other actions */}
@@ -524,5 +551,44 @@ export function SettingsModal({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+function NotificationToggle({ itemKey, label }: { itemKey: string; label: string }) {
+  const [enabled, setEnabled] = useState(true)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(d => {
+        if (d.user && typeof d.user[itemKey] === 'boolean') {
+          setEnabled(d.user[itemKey])
+        }
+      })
+      .catch(() => {})
+  }, [itemKey])
+
+  const toggle = async (checked: boolean) => {
+    setEnabled(checked)
+    setLoading(true)
+    try {
+      await fetch('/api/auth/update-notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [itemKey]: checked }),
+      })
+    } catch {
+      setEnabled(!checked)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20">
+      <span className="text-sm">{label}</span>
+      <Switch checked={enabled} onCheckedChange={toggle} disabled={loading} />
+    </div>
   )
 }
