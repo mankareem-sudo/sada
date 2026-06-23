@@ -8,6 +8,7 @@ import { useSada } from '@/lib/store'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
 import { PostsFeed } from './PostsFeed'
+import { WhoToFollow } from './WhoToFollow'
 import { formatArabicDate, formatCount, timeAgo } from '@/lib/format'
 import type { SadaVoiceNote } from '@/lib/types'
 
@@ -156,6 +157,12 @@ export function TodayView() {
           </div>
         )}
       </div>
+
+      {/* Who to follow */}
+      <WhoToFollow onOpenProfile={(u) => {
+        useSada.getState().setViewedUsername(u)
+        useSada.getState().setTab('profile')
+      }} />
 
       {/* Posts Feed — مثل انستجرام */}
       <div>

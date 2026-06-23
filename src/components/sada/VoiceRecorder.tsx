@@ -169,9 +169,20 @@ export function VoiceRecorder({
     } catch (e: any) {
       console.error('Recording error', e)
       if (e?.name === 'NotAllowedError') {
-        toast.error('مسموحش باستخدام الميكروفون. فعّل الإذن من إعدادات المتصفح')
+        toast.error('مسموحش باستخدام الميكروفون. فعّل الإذن من إعدادات المتصفح — علامة القفل 🔒 جنب الـ URL', {
+          duration: 6000,
+          action: { label: 'إعادة المحاولة', onClick: () => startRecording() },
+        })
+      } else if (e?.name === 'NotFoundError') {
+        toast.error('مفيش ميكروفون متاح. لو على كمبيوتر، تأكد إن الميكروفون متصل', {
+          duration: 6000,
+          action: { label: 'إعادة المحاولة', onClick: () => startRecording() },
+        })
       } else {
-        toast.error('مفيش ميكروفون متاح أو المتصفح مش بيدعم التسجيل')
+        toast.error('المتصفح مش بيدعم التسجيل. جرّب Chrome أو Firefox', {
+          duration: 6000,
+          action: { label: 'إعادة المحاولة', onClick: () => startRecording() },
+        })
       }
     }
   }
