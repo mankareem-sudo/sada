@@ -21,6 +21,7 @@ import { SettingsModal } from '@/components/sada/SettingsModal'
 import { OnboardingModal } from '@/components/sada/OnboardingModal'
 import { EmailVerificationGate } from '@/components/sada/EmailVerificationGate'
 import { CookieConsent } from '@/components/sada/CookieConsent'
+import { PushNotificationManager } from '@/components/sada/PushNotificationManager'
 import { FollowListModal } from '@/components/sada/FollowListModal'
 import { SharedNoteModal } from '@/components/sada/SharedNoteModal'
 
@@ -158,6 +159,7 @@ export default function Home() {
       </main>
       <BottomNav />
       <CookieConsent />
+      <PushNotificationManager />
 
       {/* Modals */}
       <VoiceRecorder

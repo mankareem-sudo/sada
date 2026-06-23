@@ -19,12 +19,13 @@ export async function POST(req: NextRequest) {
   if (!rateCheck.allowed && rateCheck.response) return rateCheck.response
 
   const body = await req.json()
-  const { type, content, imageUrl, voiceNoteId, privacy } = body as {
+  const { type, content, imageUrl, voiceNoteId, privacy, scheduledAt } = body as {
     type?: string
     content?: string
     imageUrl?: string
     voiceNoteId?: string
     privacy?: string
+    scheduledAt?: string
   }
 
   if (!type || !['text', 'image', 'voice'].includes(type)) {
@@ -50,6 +51,8 @@ export async function POST(req: NextRequest) {
     type,
     privacy: validPrivacy,
     hashtags,
+    scheduledAt: scheduledAt || null,
+    isPublished: !scheduledAt,
     createdAt: new Date().toISOString(),
   }
 

@@ -743,6 +743,7 @@ export const db = {
   friendship: createTableHandler('Friendship'),
   message: createTableHandler('Message'),
   block: createTableHandler('Block'),
+  pushSubscription: createTableHandler('PushSubscription'),
   // For raw queries (used by migrate endpoint)
   $executeRawUnsafe: async (sql: string) => {
     // Use Supabase rpc to execute raw SQL

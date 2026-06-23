@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Image as ImageIcon, X, Loader2, Send, Type, Mic, Globe, Users, Lock } from 'lucide-react'
+import { Image as ImageIcon, X, Loader2, Send, Type, Mic, Globe, Users, Lock, Clock } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { compressPostImage } from '@/lib/image-compress'
 import { toast } from 'sonner'
@@ -16,6 +16,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
   const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public')
+  const [scheduleAt, setScheduleAt] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
   const user = useSada((s) => s.user)
 
@@ -57,6 +58,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
           content: text.trim() || undefined,
           imageUrl: image || undefined,
           privacy,
+          scheduledAt: scheduleAt || undefined,
         }),
       })
       if (!res.ok) { toast.error('فشل النشر'); return }
@@ -64,6 +66,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
       setText('')
       setImage(null)
       localStorage.removeItem('sada-post-draft')
+      setScheduleAt('')
       setOpen(false)
       onPosted?.()
     } catch { toast.error('فشل') } finally { setLoading(false) }
@@ -160,6 +163,19 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
                 <Lock className="h-4 w-4" />
               </button>
             </div>
+            {/* Schedule */}
+            {scheduleAt && (
+              <span className="text-[10px] text-amber-500 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {new Date(scheduleAt).toLocaleString('ar-EG')}
+              </span>
+            )}
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              className="text-[10px] bg-muted/30 rounded px-2 py-1 text-muted-foreground"
+            />
           </div>
           <Button
             onClick={submit}
