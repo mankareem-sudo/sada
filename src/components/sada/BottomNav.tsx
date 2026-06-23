@@ -34,7 +34,6 @@ export function BottomNav() {
     { key: 'today', label: 'اليوم', icon: Sparkles },
     { key: 'feed', label: 'الرئيسية', icon: Home },
     { key: 'trending', label: 'رائج', icon: Flame },
-    { key: 'bookmarks', label: 'محفوظات', icon: Bookmark },
   ]
 
   const rightTabs: { key: TabKey; label: string; icon: any }[] = [
@@ -49,43 +48,47 @@ export function BottomNav() {
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 pointer-events-none">
-      <div className="max-w-2xl mx-auto px-2 pb-2 pointer-events-auto">
-        <div className="sada-glass rounded-2xl shadow-2xl flex items-center justify-between p-1.5 relative overflow-x-auto no-scrollbar">
+      <div className="max-w-2xl mx-auto px-3 pb-3 pointer-events-auto">
+        <div className="sada-glass rounded-2xl shadow-2xl flex items-center justify-between p-1.5 relative">
           {/* Left tabs */}
-          {leftTabs.map((t) => (
-            <NavButton
-              key={t.key}
-              active={tab === t.key}
-              icon={t.icon}
-              label={t.label}
-              onClick={() => onTabClick(t.key)}
-            />
-          ))}
+          <div className="flex items-center gap-0.5">
+            {leftTabs.map((t) => (
+              <NavButton
+                key={t.key}
+                active={tab === t.key}
+                icon={t.icon}
+                label={t.label}
+                onClick={() => onTabClick(t.key)}
+              />
+            ))}
+          </div>
 
-          {/* Center record button */}
+          {/* Center record button — raised above the bar */}
           <button
             onClick={() => setRecorderOpen(true)}
-            className="shrink-0 -mt-5 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xl shadow-primary/40 hover:scale-105 active:scale-95 transition mx-1"
+            className="shrink-0 -mt-6 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-xl shadow-primary/40 hover:scale-110 active:scale-95 transition border-4 border-background z-10"
             aria-label="سجّل صدى"
           >
-            <Plus className="h-6 w-6" strokeWidth={2.5} />
+            <Plus className="h-6 w-6" strokeWidth={3} />
           </button>
 
           {/* Right tabs */}
-          {rightTabs.map((t) => (
-            <NavButton
-              key={t.key}
-              active={tab === t.key}
-              icon={t.icon}
-              label={t.label}
-              onClick={() => onTabClick(t.key)}
-              badge={
-                t.key === 'notifications' && unread > 0
-                  ? Math.min(unread, 99)
-                  : undefined
-              }
-            />
-          ))}
+          <div className="flex items-center gap-0.5">
+            {rightTabs.map((t) => (
+              <NavButton
+                key={t.key}
+                active={tab === t.key}
+                icon={t.icon}
+                label={t.label}
+                onClick={() => onTabClick(t.key)}
+                badge={
+                  t.key === 'notifications' && unread > 0
+                    ? Math.min(unread, 99)
+                    : undefined
+                }
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -109,7 +112,7 @@ function NavButton({
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition shrink-0 min-w-[52px]',
+        'flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition shrink-0 min-w-[48px]',
         active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
       )}
     >
