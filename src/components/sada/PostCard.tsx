@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2 } from 'lucide-react'
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { formatCount, timeAgo } from '@/lib/format'
 import { toast } from 'sonner'
@@ -64,6 +64,8 @@ export function PostCard({
   const [commentText, setCommentText] = useState('')
   const [commentImage, setCommentImage] = useState<string | null>(null)
   const [moreMenu, setMoreMenu] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [imageViewer, setImageViewer] = useState<string | null>(null)
   const user = useSada((s) => s.user)
@@ -138,6 +140,33 @@ export function PostCard({
     } catch { toast.error('فشل تحميل الصورة') }
   }
 
+  const toggleSave = async () => {
+    if (!user) { toast.error('سجّل دخول الأول'); return }
+    const newSaved = !saved
+    setSaved(newSaved)
+    try {
+      // Use voice-notes bookmark endpoint for now (same concept)
+      await fetch('/api/voice-notes/bookmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: post.id, action: newSaved ? 'save' : 'unsave' }),
+      })
+      toast.success(newSaved ? 'اتحفظ' : 'اتشال')
+    } catch { setSaved(!newSaved) }
+  }
+
+  const sharePost = async () => {
+    const url = `${window.location.origin}/?share=${post.id}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'صدى', text: post.content?.slice(0, 100) || 'بوست على صدى', url })
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url)
+      toast.success('اتنسخ الرابط')
+    }
+  }
+
   const deletePost = async () => {
     if (!confirm('متأكد من حذف البوست؟')) return
     try {
@@ -168,7 +197,7 @@ export function PostCard({
                 <div className="text-xs text-muted-foreground">@{post.user?.username} · {timeAgo(post.createdAt)}</div>
               </div>
             </button>
-            {user?.id === post.user?.id && (
+            {user && (
               <div className="relative">
                 <button onClick={() => setMoreMenu(v => !v)} className="p-2 hover:bg-muted/60 rounded-full transition">
                   <MoreHorizontal className="h-4 w-4" />
@@ -176,10 +205,27 @@ export function PostCard({
                 {moreMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setMoreMenu(false)} />
-                    <div className="absolute left-0 top-full mt-1 z-20 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
-                      <button onClick={deletePost} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm text-destructive">
-                        <Trash2 className="h-4 w-4" /> حذف
+                    <div className="absolute left-0 top-full mt-1 z-20 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]">
+                      {/* Share */}
+                      <button onClick={() => { setMoreMenu(false); sharePost() }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm">
+                        <Share2 className="h-4 w-4" /> مشاركة
                       </button>
+                      {/* Bookmark */}
+                      <button onClick={() => { setMoreMenu(false); toggleSave() }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm">
+                        <Bookmark className={`h-4 w-4 ${saved ? 'fill-primary text-primary' : ''}`} /> {saved ? 'إلغاء الحفظ' : 'حفظ'}
+                      </button>
+                      {/* Report — only on others' posts */}
+                      {user.id !== post.user?.id && (
+                        <button onClick={() => { setMoreMenu(false); setReportOpen(true) }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm text-destructive">
+                          <Flag className="h-4 w-4" /> إبلاغ
+                        </button>
+                      )}
+                      {/* Delete — only on own posts */}
+                      {user.id === post.user?.id && (
+                        <button onClick={() => { setMoreMenu(false); deletePost() }} className="w-full text-right px-3 py-2 hover:bg-muted/50 flex items-center gap-2 text-sm text-destructive">
+                          <Trash2 className="h-4 w-4" /> حذف
+                        </button>
+                      )}
                     </div>
                   </>
                 )}

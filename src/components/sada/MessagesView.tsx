@@ -145,7 +145,7 @@ export function MessagesView() {
           <Card className="p-10 text-center rounded-2xl border-dashed">
             <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              مفيش رسايل لسه. ابدأ بمحادثة صديق من برنامجه!
+              مفيش رسايل لسه. ابدأ بمحادثة صديق من بروفايله!
             </p>
           </Card>
         ) : (
