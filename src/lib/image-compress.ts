@@ -92,37 +92,40 @@ export function compressImage(
 }
 
 /**
- * Compress avatar image (smaller dimensions)
+ * Compress avatar image (smaller dimensions for profile pics)
+ * 200x200 is enough for avatars on mobile — they display at 32-80px
  */
 export function compressAvatar(file: File): Promise<string> {
   return compressImage(file, {
-    maxWidth: 400,
-    maxHeight: 400,
-    quality: 0.85,
-    maxSizeKB: 200,
+    maxWidth: 256,
+    maxHeight: 256,
+    quality: 0.75,
+    maxSizeKB: 80, // ~80KB per avatar
   })
 }
 
 /**
- * Compress post image (larger, for feed)
+ * Compress post image (for feed)
+ * 720px is enough for mobile screens — looks crisp on phones
  */
 export function compressPostImage(file: File): Promise<string> {
   return compressImage(file, {
-    maxWidth: 1080,
-    maxHeight: 1080,
-    quality: 0.8,
-    maxSizeKB: 800,
+    maxWidth: 720,
+    maxHeight: 720,
+    quality: 0.7,
+    maxSizeKB: 200, // ~200KB per post image
   })
 }
 
 /**
- * Compress comment image (medium)
+ * Compress comment image (medium, inline)
+ * 400px is enough for inline comment images
  */
 export function compressCommentImage(file: File): Promise<string> {
   return compressImage(file, {
-    maxWidth: 600,
-    maxHeight: 600,
-    quality: 0.75,
-    maxSizeKB: 300,
+    maxWidth: 480,
+    maxHeight: 480,
+    quality: 0.65,
+    maxSizeKB: 100, // ~100KB per comment image
   })
 }
