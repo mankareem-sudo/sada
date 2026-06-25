@@ -86,11 +86,11 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<Ch
         maxTokens,
         responseFormat,
       })
-      if (result.content) {
+      if (result.content && result.content.trim().length > 0) {
         return result
       }
     } catch (e: any) {
-      console.warn(`[OpenRouter] Model ${currentModel} failed:`, e.message)
+      console.warn(`[OpenRouter] Model ${currentModel} failed:`, e.message?.slice(0, 200))
       // Continue to next model
       if (e.status === 429) {
         // Rate limited — wait a bit before trying next
@@ -116,7 +116,7 @@ async function callModel(
   }
 ): Promise<ChatCompletionResult> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 15000) // 15s timeout
+  const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout (was 15s)
 
   try {
     const body: any = {
@@ -126,7 +126,10 @@ async function callModel(
       max_tokens: options.maxTokens,
     }
 
-    if (options.responseFormat === 'json') {
+    // Note: Only set response_format for models that support it
+    // Free models often don't support JSON mode, so we skip it
+    // and parse JSON manually in chatJSON()
+    if (options.responseFormat === 'json' && !model.includes('gemma')) {
       body.response_format = { type: 'json_object' }
     }
 
