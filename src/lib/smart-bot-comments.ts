@@ -7,7 +7,7 @@
  * Falls back to keyword-based matching if AI is unavailable.
  */
 
-import { chatJSON } from './openrouter'
+import { chatJSON, chatCompletion } from './openrouter'
 import { generateEgyptianComment, pickRandom } from './egyptian-bots'
 
 const COMMENT_SYSTEM_PROMPT = `أنت شخص مصري بتعمل تعليق على منشور في منصة "صدى" الصوتية العربية.
@@ -43,24 +43,26 @@ export async function generateSmartComment(
   // Try AI first (if post is long enough to warrant it)
   if (postContent.length > 20) {
     try {
-      const { data, error, model } = await chatJSON<{ comment: string }>([
-        { role: 'system', content: COMMENT_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `اكتب تعليق مصري طبيعي على المنشور ده:\n\n"${postContent}"\n\n${botName ? `(أنت اسمك ${botName})` : ''}`,
-        },
-      ], {
+      // Use chatCompletion (text, not JSON) since we just need a comment
+      const result = await chatCompletion({
+        messages: [
+          { role: 'system', content: COMMENT_SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `اكتب تعليق مصري طبيعي على المنشور ده:\n\n"${postContent}"\n\n${botName ? `(أنت اسمك ${botName})` : ''}`,
+          },
+        ],
         temperature: 0.8, // Higher temperature for variety
         maxTokens: 150,
       })
 
-      if (!error && data?.comment) {
-        let comment = data.comment.trim()
+      if (!result.error && result.content && result.content.trim().length > 5) {
+        let comment = result.content.trim()
         // Clean up: remove quotes, markdown
         comment = comment.replace(/^["'`]|["'`]$/g, '').replace(/\*\*/g, '')
         // Validate length
         if (comment.length >= 5 && comment.length <= 280) {
-          return { comment, usedAI: true, model }
+          return { comment, usedAI: true, model: result.model }
         }
       }
     } catch (e) {
@@ -205,24 +207,25 @@ export async function generateSmartReply(
   botName?: string
 ): Promise<{ reply: string; usedAI: boolean; model: string }> {
   try {
-    const { data, error, model } = await chatJSON<{ reply: string }>([
-      {
-        role: 'system',
-        content: COMMENT_SYSTEM_PROMPT + '\n\nأنت بترد على تعليق تاني في نفس المنشور. ردك لازم يكون طبيعي وقصير.',
-      },
-      {
-        role: 'user',
-        content: `المنشور: "${postContent}"\n\nالتعليق اللي بترد عليه: "${parentComment}"\n\nاكتب رد مصري طبيعي.${botName ? ` (أنت اسمك ${botName})` : ''}`,
-      },
-    ], {
+    const result = await chatCompletion({
+      messages: [
+        {
+          role: 'system',
+          content: COMMENT_SYSTEM_PROMPT + '\n\nأنت بترد على تعليق تاني في نفس المنشور. ردك لازم يكون طبيعي وقصير.',
+        },
+        {
+          role: 'user',
+          content: `المنشور: "${postContent}"\n\nالتعليق اللي بترد عليه: "${parentComment}"\n\nاكتب رد مصري طبيعي.${botName ? ` (أنت اسمك ${botName})` : ''}`,
+        },
+      ],
       temperature: 0.8,
       maxTokens: 120,
     })
 
-    if (!error && data?.reply) {
-      let reply = data.reply.trim().replace(/^["'`]|["'`]$/g, '').replace(/\*\*/g, '')
+    if (!result.error && result.content && result.content.trim().length > 5) {
+      let reply = result.content.trim().replace(/^["'`]|["'`]$/g, '').replace(/\*\*/g, '')
       if (reply.length >= 5 && reply.length <= 280) {
-        return { reply, usedAI: true, model }
+        return { reply, usedAI: true, model: result.model }
       }
     }
   } catch (e) {
