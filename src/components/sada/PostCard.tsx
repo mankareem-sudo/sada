@@ -18,6 +18,7 @@ interface Post {
   content?: string | null
   imageUrl?: string | null
   voiceNoteId?: string | null
+  privacy?: 'public' | 'friends' | 'private'
   plays: number
   createdAt: string
   user: {
