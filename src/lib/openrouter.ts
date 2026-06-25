@@ -18,15 +18,13 @@
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
-// Free models in priority order (best first) — updated June 2026
-// Verified available via https://openrouter.ai/api/v1/models
+// Free models in priority order (best first) — verified working June 2026
+// Tested individually: only these 4 return successful responses
 export const FREE_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',      // 70B, great quality
-  'qwen/qwen3-next-80b-a3b-instruct:free',         // 80B, excellent Arabic
-  'openai/gpt-oss-120b:free',                      // 120B, OpenAI open model
-  'google/gemma-4-31b-it:free',                    // 31B, Google
-  'meta-llama/llama-3.2-3b-instruct:free',         // 3B, fast fallback
-  'nvidia/nemotron-3-nano-30b-a3b:free',           // 30B, NVIDIA
+  'google/gemma-4-31b-it:free',                    // 31B, best quality, works great for Arabic
+  'openai/gpt-oss-20b:free',                       // 20B, OpenAI open model
+  'openrouter/free',                               // OpenRouter's auto-routing free tier
+  'liquid/lfm-2.5-1.2b-instruct:free',             // 1.2B, fast fallback
 ] as const
 
 export interface ChatMessage {
