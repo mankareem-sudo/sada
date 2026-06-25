@@ -24,9 +24,6 @@ interface VoicePlayerProps {
 }
 
 declare global {
-  interface Navigator {
-    mediaSession?: any
-  }
   interface Window {
     MediaMetadata?: any
   }
