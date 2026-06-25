@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
-import { chatCompletion, chatJSON } from '@/lib/openrouter'
 
 /**
  * GET /api/debug/openrouter
  *
- * Debug endpoint to verify OpenRouter API key is set and working.
- * Returns diagnostic info (does NOT expose the actual key).
+ * Debug endpoint with verbose error logging.
  */
 export async function GET() {
   const apiKey = process.env.OPENROUTER_API_KEY
@@ -13,31 +11,53 @@ export async function GET() {
   const diagnostics = {
     apiKeySet: !!apiKey,
     apiKeyLength: apiKey ? apiKey.length : 0,
-    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET',
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 15) + '...' : 'NOT SET',
     nodeEnv: process.env.NODE_ENV,
     vercelEnv: process.env.VERCEL_ENV,
     timestamp: new Date().toISOString(),
   }
 
-  // Try a simple AI call
+  // Try a direct fetch to OpenRouter with verbose logging
   try {
-    const result = await chatCompletion({
+    const body = {
+      model: 'google/gemma-4-31b-it:free',
       messages: [
-        { role: 'system', content: 'You are a helpful assistant. Reply with exactly: "OK"' },
         { role: 'user', content: 'Say OK' },
       ],
-      maxTokens: 10,
-      temperature: 0,
+      max_tokens: 10,
+    }
+
+    console.log('[DEBUG] Sending request to OpenRouter:', JSON.stringify(body))
+
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://my-project-one-lake-82.vercel.app',
+        'X-Title': 'Sada',
+      },
+      body: JSON.stringify(body),
     })
+
+    const resText = await res.text()
+    console.log('[DEBUG] Response status:', res.status)
+    console.log('[DEBUG] Response body:', resText.slice(0, 500))
+
+    let data: any = null
+    try {
+      data = JSON.parse(resText)
+    } catch {}
 
     return NextResponse.json({
       ...diagnostics,
       testCall: {
-        success: !!result.content,
-        content: result.content,
-        model: result.model,
-        error: result.error,
-        usage: result.usage,
+        success: res.ok && !!data?.choices?.[0]?.message?.content,
+        httpStatus: res.status,
+        content: data?.choices?.[0]?.message?.content || '',
+        model: data?.model || '',
+        error: data?.error?.message || (!res.ok ? `HTTP ${res.status}` : ''),
+        rawResponse: resText.slice(0, 300),
       },
     })
   } catch (e: any) {
@@ -50,38 +70,4 @@ export async function GET() {
       },
     })
   }
-}
-
-/**
- * POST /api/debug/openrouter
- * body: { prompt }
- *
- * Test a custom prompt.
- */
-export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}))
-  const prompt = body.prompt || 'اكتب تعليق مصري قصير على هذا المنشور: "الحياة حلوة"'
-
-  const apiKey = process.env.OPENROUTER_API_KEY
-
-  const result = await chatCompletion({
-    messages: [
-      { role: 'system', content: 'أنت شخص مصري بتكتب تعليق قصير باللهجة المصرية.' },
-      { role: 'user', content: prompt },
-    ],
-    maxTokens: 100,
-    temperature: 0.8,
-  })
-
-  return NextResponse.json({
-    apiKeySet: !!apiKey,
-    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET',
-    prompt,
-    result: {
-      content: result.content,
-      model: result.model,
-      error: result.error,
-      usage: result.usage,
-    },
-  })
 }
