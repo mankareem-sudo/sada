@@ -37,6 +37,7 @@ export default function Home() {
   const setTodayPrompt = useSada((s) => s.setTodayPrompt)
   const recorderOpen = useSada((s) => s.recorderOpen)
   const setRecorderOpen = useSada((s) => s.setRecorderOpen)
+  const recorderMode = useSada((s) => s.recorderMode)
   const viewedUsername = useSada((s) => s.viewedUsername)
   const searchOpen = useSada((s) => s.searchOpen)
   const setSearchOpen = useSada((s) => s.setSearchOpen)
@@ -165,6 +166,7 @@ export default function Home() {
       <VoiceRecorder
         key={recorderOpen ? 'open' : 'closed'}
         open={recorderOpen}
+        mode={recorderMode}
         onClose={() => setRecorderOpen(false)}
         onSubmitted={() => {
           if (tab === 'today' || tab === 'profile') {

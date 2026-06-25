@@ -262,6 +262,10 @@ export function VoiceNoteCard({
         src={note.audioData}
         durationSec={note.durationSec}
         onPlayedOnce={handlePlay}
+        title={note.transcript ? note.transcript.slice(0, 60) + (note.transcript.length > 60 ? '...' : '') : 'تسجيل صوتي'}
+        artist={note.user?.name}
+        album="صدى"
+        artworkUrl={note.user?.avatarUrl || undefined}
       />
 
       {/* Transcript (if available or being generated) */}

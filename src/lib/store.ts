@@ -79,6 +79,10 @@ export const useSada = create<SadaState>((set) => ({
 
   recorderOpen: false,
   setRecorderOpen: (v) => set({ recorderOpen: v }),
+  recorderMode: 'voice-note' as 'voice-note' | 'story',
+  setRecorderMode: (m) => set({ recorderMode: m }),
+  openRecorder: (mode = 'voice-note' as 'voice-note' | 'story') =>
+    set({ recorderOpen: true, recorderMode: mode }),
 
   viewedUsername: null,
   setViewedUsername: (u) => set({ viewedUsername: u }),

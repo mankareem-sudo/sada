@@ -9,6 +9,7 @@ import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
 import { PostsFeed } from './PostsFeed'
 import { WhoToFollow } from './WhoToFollow'
+import { StoriesBar } from './StoriesBar'
 import { formatArabicDate, formatCount, timeAgo } from '@/lib/format'
 import type { SadaVoiceNote } from '@/lib/types'
 
@@ -56,6 +57,9 @@ export function TodayView() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 pb-28 space-y-5">
+      {/* Stories Bar (voice stories that expire in 24h) */}
+      <StoriesBar onOpenProfile={() => {}} />
+
       {/* Today's prompt card */}
       {todayPrompt && (
         <Card className="p-6 rounded-3xl border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card sada-fade-up">

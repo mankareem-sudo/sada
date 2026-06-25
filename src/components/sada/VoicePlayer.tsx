@@ -13,6 +13,23 @@ interface VoicePlayerProps {
   onPlayedOnce?: () => void
   className?: string
   accent?: 'primary' | 'accent'
+  /** Title shown in OS media controls (lock screen / notification) */
+  title?: string
+  /** Artist/author name shown in OS media controls */
+  artist?: string
+  /** Album/source shown in OS media controls */
+  album?: string
+  /** Artwork URL for OS media controls */
+  artworkUrl?: string
+}
+
+declare global {
+  interface Navigator {
+    mediaSession?: any
+  }
+  interface Window {
+    MediaMetadata?: any
+  }
 }
 
 export function VoicePlayer({
@@ -21,6 +38,10 @@ export function VoicePlayer({
   onPlayedOnce,
   className,
   accent = 'primary',
+  title,
+  artist,
+  album = 'صدى',
+  artworkUrl,
 }: VoicePlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -32,6 +53,85 @@ export function VoicePlayer({
     Array.from({ length: 36 }, () => 30 + Math.random() * 70)
   )
 
+  // === MediaSession API: Background Playback ===
+  // Sets metadata so OS shows title/artist/artwork on lock screen + notification
+  // Enables hardware media keys (play/pause/seek) and Bluetooth controls
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.mediaSession) return
+    if (!title && !artist) return
+
+    try {
+      const metadata = new window.MediaMetadata({
+        title: title || 'تسجيل صوتي',
+        artist: artist || 'صدى',
+        album,
+        artwork: artworkUrl
+          ? [
+              { src: artworkUrl, sizes: '96x96', type: 'image/png' },
+              { src: artworkUrl, sizes: '128x128', type: 'image/png' },
+              { src: artworkUrl, sizes: '192x192', type: 'image/png' },
+              { src: artworkUrl, sizes: '256x256', type: 'image/png' },
+              { src: artworkUrl, sizes: '512x512', type: 'image/png' },
+            ]
+          : [],
+      })
+      navigator.mediaSession.metadata = metadata
+    } catch (e) {
+      console.warn('MediaMetadata error', e)
+    }
+  }, [title, artist, album, artworkUrl])
+
+  // === MediaSession action handlers ===
+  // Wire up play/pause/seekto so hardware buttons work
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.mediaSession) return
+    const audio = audioRef.current
+    if (!audio) return
+
+    try {
+      navigator.mediaSession.setActionHandler('play', () => {
+        audio.play().catch(() => {})
+      })
+      navigator.mediaSession.setActionHandler('pause', () => {
+        audio.pause()
+      })
+      navigator.mediaSession.setActionHandler('seekbackward', (details: any) => {
+        const skip = details?.seekOffset || 10
+        audio.currentTime = Math.max(0, audio.currentTime - skip)
+      })
+      navigator.mediaSession.setActionHandler('seekforward', (details: any) => {
+        const skip = details?.seekOffset || 10
+        const total = audio.duration || durationSec
+        audio.currentTime = Math.min(total, audio.currentTime + skip)
+      })
+      navigator.mediaSession.setActionHandler('seekto', (details: any) => {
+        if (typeof details?.seekTime === 'number') {
+          audio.currentTime = details.seekTime
+        }
+      })
+      navigator.mediaSession.setActionHandler('stop', () => {
+        audio.pause()
+        audio.currentTime = 0
+      })
+    } catch (e) {
+      // Some browsers don't support all handlers — ignore
+    }
+
+    return () => {
+      try {
+        // Clear handlers on unmount
+        if (navigator.mediaSession) {
+          navigator.mediaSession.setActionHandler('play', null)
+          navigator.mediaSession.setActionHandler('pause', null)
+          navigator.mediaSession.setActionHandler('seekbackward', null)
+          navigator.mediaSession.setActionHandler('seekforward', null)
+          navigator.mediaSession.setActionHandler('seekto', null)
+          navigator.mediaSession.setActionHandler('stop', null)
+        }
+      } catch {}
+    }
+  }, [durationSec])
+
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -40,20 +140,41 @@ export function VoicePlayer({
       setCurrentSec(audio.currentTime)
       const total = audio.duration || durationSec
       if (total > 0) setProgress(audio.currentTime / total)
+      // Update MediaSession position state (for OS to show progress bar)
+      if (typeof navigator !== 'undefined' && navigator.mediaSession?.setPositionState) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration || durationSec,
+            position: audio.currentTime,
+            playbackRate: audio.playbackRate || 1,
+          })
+        } catch {}
+      }
     }
     const handleEnd = () => {
       setPlaying(false)
       setProgress(0)
       setCurrentSec(0)
+      if (typeof navigator !== 'undefined' && navigator.mediaSession) {
+        navigator.mediaSession.playbackState = 'none'
+      }
     }
     const handlePlay = () => {
       setPlaying(true)
+      if (typeof navigator !== 'undefined' && navigator.mediaSession) {
+        navigator.mediaSession.playbackState = 'playing'
+      }
       if (!hasReportedPlay) {
         onPlayedOnce?.()
         setHasReportedPlay(true)
       }
     }
-    const handlePause = () => setPlaying(false)
+    const handlePause = () => {
+      setPlaying(false)
+      if (typeof navigator !== 'undefined' && navigator.mediaSession) {
+        navigator.mediaSession.playbackState = 'paused'
+      }
+    }
 
     audio.addEventListener('timeupdate', handleTime)
     audio.addEventListener('ended', handleEnd)

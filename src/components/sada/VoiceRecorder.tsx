@@ -16,6 +16,8 @@ interface VoiceRecorderProps {
   promptId?: string | null
   promptDate?: string
   promptText?: string
+  /** 'voice-note' (default) = regular voice note, 'story' = 24h voice story */
+  mode?: 'voice-note' | 'story'
 }
 
 type Phase = 'idle' | 'recording' | 'reviewing' | 'uploading'
@@ -27,6 +29,7 @@ export function VoiceRecorder({
   promptId,
   promptDate,
   promptText,
+  mode = 'voice-note',
 }: VoiceRecorderProps) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [elapsed, setElapsed] = useState(0)
@@ -198,17 +201,21 @@ export function VoiceRecorder({
     if (!audioData) return
     setPhase('uploading')
     try {
-      const res = await fetch('/api/voice-notes/create', {
+      const endpoint = mode === 'story' ? '/api/stories/create' : '/api/voice-notes/create'
+      const payload: any = {
+        audioData,
+        mimeType,
+        durationSec: elapsed,
+      }
+      if (mode === 'voice-note') {
+        payload.promptId = promptId || undefined
+        payload.promptDate = promptDate || undefined
+        payload.description = description.trim() || undefined
+      }
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          audioData,
-          mimeType,
-          durationSec: elapsed,
-          promptId: promptId || undefined,
-          promptDate: promptDate || undefined,
-          description: description.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -216,7 +223,7 @@ export function VoiceRecorder({
         setPhase('reviewing')
         return
       }
-      toast.success('تم نشر صدى صوتك 🎙️')
+      toast.success(mode === 'story' ? 'تم نشر ستوريك 🎙️' : 'تم نشر صدى صوتك 🎙️')
       setDescription('')
       onSubmitted()
       onClose()

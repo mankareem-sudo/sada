@@ -5,9 +5,28 @@ import { useSada } from '@/lib/store'
 import { VoiceNoteCard } from './VoiceNoteCard'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Calendar, RefreshCcw } from 'lucide-react'
+import { Avatar } from './Avatar'
+import { Calendar, RefreshCcw, Sparkles, Mic, FileText } from 'lucide-react'
 import type { SadaVoiceNote, SadaPrompt } from '@/lib/types'
-import { formatArabicDate } from '@/lib/format'
+import { formatArabicDate, timeAgo } from '@/lib/format'
+
+interface Recommendation {
+  id: string
+  type: 'voice' | 'post'
+  title: string
+  authorId: string
+  createdAt: string
+  score: number
+  reason: string
+  author: {
+    id: string
+    username: string
+    name: string
+    avatarColor: string
+    avatarUrl?: string | null
+    isVerified?: boolean
+  } | null
+}
 
 export function DiscoverView({
   onOpenProfile,
@@ -22,6 +41,8 @@ export function DiscoverView({
   const [prompts, setPrompts] = useState<SadaPrompt[]>([])
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'voice' | 'text'>('all')
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [loadingRecs, setLoadingRecs] = useState(true)
 
   const load = useCallback(
     async (reset = false, promptId: string | null = null) => {
@@ -52,12 +73,26 @@ export function DiscoverView({
     [cursor]
   )
 
+  const loadRecommendations = useCallback(async () => {
+    setLoadingRecs(true)
+    try {
+      const res = await fetch('/api/discover/recommendations?limit=8')
+      const data = await res.json()
+      setRecommendations(data.recommendations || [])
+    } catch {
+      // ignore
+    } finally {
+      setLoadingRecs(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetch('/api/prompts/list')
       .then((r) => r.json())
       .then((d) => setPrompts(d.prompts || []))
       .catch(() => {})
-  }, [])
+    loadRecommendations()
+  }, [loadRecommendations])
 
   useEffect(() => {
     load(true, selectedPrompt)
@@ -71,6 +106,78 @@ export function DiscoverView({
           استمع لإجابات الناس على أسئلة الأيام الماضية
         </p>
       </div>
+
+      {/* === AI Recommendations === */}
+      {!selectedPrompt && (
+        <Card className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <h3 className="font-semibold text-sm">مقترحات لك</h3>
+            </div>
+            <button
+              onClick={loadRecommendations}
+              className="text-xs text-muted-foreground hover:text-foreground transition"
+              title="تحديث المقترحات"
+            >
+              <RefreshCcw className={`h-3.5 w-3.5 ${loadingRecs ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {loadingRecs ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-12 rounded-lg bg-muted/30 animate-pulse" />
+              ))}
+            </div>
+          ) : recommendations.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              تابع ناس وتفاعل مع أصوات عشان نوصفلك محتوى يناسبك
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {recommendations.map((rec) => (
+                <button
+                  key={`${rec.type}-${rec.id}`}
+                  onClick={() => rec.author && onOpenProfile(rec.author.username)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/40 transition text-right group"
+                >
+                  {rec.author && (
+                    <Avatar
+                      name={rec.author.name}
+                      color={rec.author.avatarColor}
+                      imageUrl={rec.author.avatarUrl}
+                      size="sm"
+                      isVerified={rec.author.isVerified}
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {rec.type === 'voice' ? (
+                        <Mic className="h-3 w-3 text-primary shrink-0" />
+                      ) : (
+                        <FileText className="h-3 w-3 text-primary shrink-0" />
+                      )}
+                      <p className="text-sm font-medium truncate group-hover:text-primary transition">
+                        {rec.title}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <span>{rec.author?.name || 'مستخدم'}</span>
+                      <span>·</span>
+                      <span>{timeAgo(rec.createdAt)}</span>
+                      <span>·</span>
+                      <span className="text-primary/80">{rec.reason}</span>
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Prompt selector + Filters */}
       <div className="space-y-2">
