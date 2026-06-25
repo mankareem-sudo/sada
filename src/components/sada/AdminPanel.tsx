@@ -247,6 +247,50 @@ export function AdminPanel() {
     }
   }
 
+  const cleanupBots = async () => {
+    setSeeding(true)
+    setBotStatus(null)
+    try {
+      const res = await fetch('/api/bots/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setBotStatus(`🗑️ تم مسح: ${data.deletedPosts} بوست، ${data.deletedComments} تعليق، ${data.deletedPostLikes} لايك`)
+        loadStats()
+      } else {
+        setBotStatus(`❌ ${data.error || 'فشل'}`)
+      }
+    } catch (e) {
+      setBotStatus('❌ فشل الاتصال')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  const connectBots = async () => {
+    setSeeding(true)
+    setBotStatus(null)
+    try {
+      const res = await fetch('/api/bots/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setBotStatus(`🔗 تم ربط البوتات: ${data.followsCreated} متابعة، ${data.friendshipsCreated} صداقة، ${data.pendingRequests} طلب معلّق`)
+        loadStats()
+      } else {
+        setBotStatus(`❌ ${data.error || 'فشل'}`)
+      }
+    } catch (e) {
+      setBotStatus('❌ فشل الاتصال')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   useEffect(() => {
     loadStats()
   }, [loadStats])
@@ -857,28 +901,38 @@ export function AdminPanel() {
                 {seeding ? (
                   <>
                     <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    جاري الإنشاء...
+                    جاري...
                   </>
                 ) : (
                   'إنشاء 100 بوت'
                 )}
               </Button>
               <Button
-                onClick={() => seedBots(20)}
-                disabled={seeding}
-                variant="outline"
-                className="gap-2"
-              >
-                +20 بس
-              </Button>
-              <Button
                 onClick={fixAvatars}
                 disabled={seeding}
                 variant="outline"
                 className="gap-2"
-                title="تحديث صور البروفايل للبوتات الموجودة"
+                title="تحديث صور البروفايل"
               >
                 🖼️ صور
+              </Button>
+              <Button
+                onClick={connectBots}
+                disabled={seeding}
+                variant="outline"
+                className="gap-2"
+                title="ربط البوتات ببعض (متابعة + صداقة)"
+              >
+                🔗 ربط
+              </Button>
+              <Button
+                onClick={cleanupBots}
+                disabled={seeding}
+                variant="outline"
+                className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+                title="مسح كل المحتوى القديم"
+              >
+                🗑️ مسح
               </Button>
             </div>
           </Card>

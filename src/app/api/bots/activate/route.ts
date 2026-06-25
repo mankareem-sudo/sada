@@ -1,28 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, generateId } from '@/lib/db'
-import {
-  generateEgyptianPost,
-  generateEgyptianComment,
-  pickRandom,
-  EGYPTIAN_REACTIONS,
-} from '@/lib/egyptian-bots'
+import { pickRandom, pickRandomMany } from '@/lib/egyptian-bots'
 import { generateSmartComment, generateSmartReply } from '@/lib/smart-bot-comments'
+import { generateSmartPost, generateImageCaption } from '@/lib/smart-bot-posts'
 
 /**
  * POST /api/bots/activate
  * body: { actions?: number }
  *
- * Triggers random bot activity:
- * - 40% chance: create a post
- * - 30% chance: like a post
- * - 20% chance: comment on a post
- * - 10% chance: like a voice note
+ * Dynamic bot activity — realistic human-like behavior:
  *
- * This can be called by cron (every 5-15 min) or manually.
+ * Action distribution:
+ * - 25% Create text post (AI-generated)
+ * - 10% Create image post (AI caption + picsum image)
+ * - 15% Like a post
+ * - 5%  Like a comment
+ * - 15% Comment on a post (AI, relevant to content)
+ * - 10% Reply to an existing comment (thread)
+ * - 5%  Like a voice note
+ * - 5%  Follow a new user
+ * - 5%  Bookmark a post
+ * - 5%  Send a friend request
  */
 export async function POST(req: NextRequest) {
   try {
-    // Verify admin or internal token
     const authHeader = req.headers.get('authorization')
     const internalToken = process.env.SADA_API_TOKEN || 'sada-internal-token-2026'
     if (authHeader !== `Bearer ${internalToken}`) {
@@ -34,12 +35,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const maxActions = Math.min(body.actions || 5, 20)
+    const maxActions = Math.min(body.actions || 10, 20)
 
-    // Get all bot users (emails ending with @sada-bots.local)
+    // Get all bot users
     const botUsers = await db.user.findMany({
       where: { email: { contains: '@sada-bots.local' } },
-      take: 200,
+      take: 250,
     })
 
     if ((botUsers as any[]).length === 0) {
@@ -49,21 +50,29 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    let postsCreated = 0
-    let likesGiven = 0
-    let commentsCreated = 0
-    let voiceLikesGiven = 0
-    let aiComments = 0
-    let errors = 0
+    const stats = {
+      textPosts: 0,
+      imagePosts: 0,
+      postLikes: 0,
+      commentLikes: 0,
+      comments: 0,
+      commentReplies: 0,
+      voiceLikes: 0,
+      follows: 0,
+      bookmarks: 0,
+      friendRequests: 0,
+      aiContent: 0,
+      errors: 0,
+    }
 
     for (let i = 0; i < maxActions; i++) {
       const bot = pickRandom(botUsers as any[])
-      const action = Math.random()
+      const roll = Math.random()
 
       try {
-        if (action < 0.4) {
-          // 40%: Create a post
-          const content = generateEgyptianPost()
+        if (roll < 0.25) {
+          // 25%: Create AI text post
+          const { content, usedAI } = await generateSmartPost(bot.name)
           const privacy = Math.random() < 0.85 ? 'public' : 'friends'
 
           await db.post.create({
@@ -77,9 +86,30 @@ export async function POST(req: NextRequest) {
               createdAt: new Date().toISOString(),
             },
           })
-          postsCreated++
-        } else if (action < 0.7) {
-          // 30%: Like a post
+          stats.textPosts++
+          if (usedAI) stats.aiContent++
+
+        } else if (roll < 0.35) {
+          // 10%: Create image post with AI caption
+          const { caption, imageUrl, usedAI } = await generateImageCaption(bot.name)
+
+          await db.post.create({
+            data: {
+              id: generateId(),
+              userId: bot.id,
+              type: 'image',
+              content: caption,
+              imageUrl,
+              privacy: 'public',
+              isPublished: true,
+              createdAt: new Date().toISOString(),
+            },
+          })
+          stats.imagePosts++
+          if (usedAI) stats.aiContent++
+
+        } else if (roll < 0.50) {
+          // 15%: Like a post
           const posts = await db.post.findMany({
             where: { isPublished: true },
             take: 50,
@@ -87,24 +117,65 @@ export async function POST(req: NextRequest) {
           })
           if ((posts as any[]).length > 0) {
             const post = pickRandom(posts as any[])
-            // Check if already liked
-            const existing = await db.postLike.findFirst({
-              where: { postId: post.id, userId: bot.id },
-            })
-            if (!existing) {
-              await db.postLike.create({
-                data: {
-                  id: generateId(),
-                  postId: post.id,
-                  userId: bot.id,
-                  createdAt: new Date().toISOString(),
-                },
+            if (post.userId !== bot.id) {
+              const existing = await db.postLike.findFirst({
+                where: { postId: post.id, userId: bot.id },
               })
-              likesGiven++
+              if (!existing) {
+                await db.postLike.create({
+                  data: {
+                    id: generateId(),
+                    postId: post.id,
+                    userId: bot.id,
+                    createdAt: new Date().toISOString(),
+                  },
+                })
+                stats.postLikes++
+
+                // Notify post owner
+                await db.notification.create({
+                  data: {
+                    id: generateId(),
+                    recipientId: post.userId,
+                    actorId: bot.id,
+                    type: 'like',
+                    text: `${bot.name} عجبه منشورك`,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  },
+                }).catch(() => {})
+              }
             }
           }
-        } else if (action < 0.9) {
-          // 20%: Comment on a post (SMART - relevant to content)
+
+        } else if (roll < 0.55) {
+          // 5%: Like a comment
+          const comments = await db.postComment.findMany({
+            take: 30,
+            orderBy: { createdAt: 'desc' },
+          })
+          if ((comments as any[]).length > 0) {
+            const comment = pickRandom(comments as any[])
+            if (comment.userId !== bot.id) {
+              const existing = await db.commentLike.findFirst({
+                where: { commentId: comment.id, userId: bot.id },
+              })
+              if (!existing) {
+                await db.commentLike.create({
+                  data: {
+                    id: generateId(),
+                    commentId: comment.id,
+                    userId: bot.id,
+                    createdAt: new Date().toISOString(),
+                  },
+                })
+                stats.commentLikes++
+              }
+            }
+          }
+
+        } else if (roll < 0.70) {
+          // 15%: Comment on a post (AI, relevant)
           const posts = await db.post.findMany({
             where: { isPublished: true },
             take: 50,
@@ -112,12 +183,10 @@ export async function POST(req: NextRequest) {
           })
           if ((posts as any[]).length > 0) {
             const post = pickRandom(posts as any[])
-            // Don't comment on own post
             if (post.userId !== bot.id && post.content) {
-              // Generate smart contextual comment using AI
               const { comment, usedAI } = await generateSmartComment(post.content, bot.name)
 
-              await db.postComment.create({
+              const newComment = await db.postComment.create({
                 data: {
                   id: generateId(),
                   postId: post.id,
@@ -126,10 +195,10 @@ export async function POST(req: NextRequest) {
                   createdAt: new Date().toISOString(),
                 },
               })
-              commentsCreated++
-              if (usedAI) aiComments++
+              stats.comments++
+              if (usedAI) stats.aiContent++
 
-              // Send notification to post owner
+              // Notify post owner
               await db.notification.create({
                 data: {
                   id: generateId(),
@@ -141,30 +210,63 @@ export async function POST(req: NextRequest) {
                   createdAt: new Date().toISOString(),
                 },
               }).catch(() => {})
+            }
+          }
 
-              // 30% chance: another bot replies to this comment (thread)
-              if (Math.random() < 0.3) {
-                const otherBots = (botUsers as any[]).filter((b: any) => b.id !== bot.id)
-                if (otherBots.length > 0) {
-                  const replyBot = pickRandom(otherBots)
-                  const { reply, usedAI: replyAI } = await generateSmartReply(post.content, comment, replyBot.name)
-                  await db.postComment.create({
-                    data: {
-                      id: generateId(),
-                      postId: post.id,
-                      userId: replyBot.id,
-                      content: reply,
-                      parentId: undefined, // Would need to fetch the comment ID first
-                      createdAt: new Date().toISOString(),
-                    },
-                  }).catch(() => {})
-                  if (replyAI) aiComments++
-                }
+        } else if (roll < 0.80) {
+          // 10%: Reply to an existing comment (create a thread!)
+          const comments = await db.postComment.findMany({
+            take: 40,
+            orderBy: { createdAt: 'desc' },
+          })
+          if ((comments as any[]).length > 0) {
+            // Find a comment that's not by this bot and has no parentId (top-level)
+            const topLevelComments = (comments as any[]).filter(
+              (c: any) => c.userId !== bot.id && !c.parentId
+            )
+            if (topLevelComments.length > 0) {
+              const parentComment = pickRandom(topLevelComments)
+
+              // Get the post content for context
+              const post = await db.post.findUnique({ where: { id: parentComment.postId } })
+              if (post && post.content) {
+                const { reply, usedAI } = await generateSmartReply(
+                  post.content,
+                  parentComment.content,
+                  bot.name
+                )
+
+                await db.postComment.create({
+                  data: {
+                    id: generateId(),
+                    postId: parentComment.postId,
+                    userId: bot.id,
+                    content: reply,
+                    parentId: parentComment.id,
+                    createdAt: new Date().toISOString(),
+                  },
+                })
+                stats.commentReplies++
+                if (usedAI) stats.aiContent++
+
+                // Notify the commenter
+                await db.notification.create({
+                  data: {
+                    id: generateId(),
+                    recipientId: parentComment.userId,
+                    actorId: bot.id,
+                    type: 'comment',
+                    text: `${bot.name} رد على تعليقك`,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  },
+                }).catch(() => {})
               }
             }
           }
-        } else {
-          // 10%: Like a voice note
+
+        } else if (roll < 0.85) {
+          // 5%: Like a voice note
           const voiceNotes = await db.voiceNote.findMany({
             take: 30,
             orderBy: { createdAt: 'desc' },
@@ -184,9 +286,8 @@ export async function POST(req: NextRequest) {
                     createdAt: new Date().toISOString(),
                   },
                 })
-                voiceLikesGiven++
+                stats.voiceLikes++
 
-                // Send notification
                 await db.notification.create({
                   data: {
                     id: generateId(),
@@ -201,9 +302,105 @@ export async function POST(req: NextRequest) {
               }
             }
           }
+
+        } else if (roll < 0.90) {
+          // 5%: Follow a new user
+          const target = pickRandom(botUsers as any[])
+          if (target.id !== bot.id) {
+            const existing = await db.follow.findFirst({
+              where: { followerId: bot.id, followeeId: target.id },
+            })
+            if (!existing) {
+              await db.follow.create({
+                data: {
+                  id: generateId(),
+                  followerId: bot.id,
+                  followeeId: target.id,
+                  createdAt: new Date().toISOString(),
+                },
+              })
+              stats.follows++
+
+              await db.notification.create({
+                data: {
+                  id: generateId(),
+                  recipientId: target.id,
+                  actorId: bot.id,
+                  type: 'follow',
+                  text: `${bot.name} بدأ يتابعك`,
+                  read: false,
+                  createdAt: new Date().toISOString(),
+                },
+              }).catch(() => {})
+            }
+          }
+
+        } else if (roll < 0.95) {
+          // 5%: Bookmark a post
+          const posts = await db.post.findMany({
+            where: { isPublished: true },
+            take: 30,
+            orderBy: { createdAt: 'desc' },
+          })
+          if ((posts as any[]).length > 0) {
+            const post = pickRandom(posts as any[])
+            if (post.userId !== bot.id) {
+              const existing = await db.bookmark.findFirst({
+                where: { voiceNoteId: post.id, userId: bot.id },
+              })
+              if (!existing) {
+                await db.bookmark.create({
+                  data: {
+                    id: generateId(),
+                    voiceNoteId: post.id,
+                    userId: bot.id,
+                    createdAt: new Date().toISOString(),
+                  },
+                }).catch(() => {})
+                stats.bookmarks++
+              }
+            }
+          }
+
+        } else {
+          // 5%: Send a friend request
+          const target = pickRandom(botUsers as any[])
+          if (target.id !== bot.id) {
+            const existing1 = await db.friendship.findFirst({
+              where: { requesterId: bot.id, addresseeId: target.id },
+            })
+            const existing2 = await db.friendship.findFirst({
+              where: { requesterId: target.id, addresseeId: bot.id },
+            })
+            if (!existing1 && !existing2) {
+              await db.friendship.create({
+                data: {
+                  id: generateId(),
+                  requesterId: bot.id,
+                  addresseeId: target.id,
+                  status: 'pending',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                },
+              })
+              stats.friendRequests++
+
+              await db.notification.create({
+                data: {
+                  id: generateId(),
+                  recipientId: target.id,
+                  actorId: bot.id,
+                  type: 'follow',
+                  text: `${bot.name} بعت لك طلب صداقة`,
+                  read: false,
+                  createdAt: new Date().toISOString(),
+                },
+              }).catch(() => {})
+            }
+          }
         }
       } catch (e) {
-        errors++
+        stats.errors++
       }
 
       // Small delay between actions
@@ -213,12 +410,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       actions: maxActions,
-      postsCreated,
-      likesGiven,
-      commentsCreated,
-      voiceLikesGiven,
-      aiComments,
-      errors,
+      ...stats,
       totalBots: (botUsers as any[]).length,
     })
   } catch (e) {
