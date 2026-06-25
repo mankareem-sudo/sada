@@ -19,6 +19,12 @@
     "src/app/api/bots/fix-avatars/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/bots/cleanup/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/bots/connect/route.ts": {
+      "maxDuration": 120
+    },
     "src/app/api/moderation/scan/route.ts": {
       "maxDuration": 120
     }
