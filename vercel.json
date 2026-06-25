@@ -9,6 +9,18 @@
   "functions": {
     "src/app/api/**/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/bots/activate/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/bots/seed/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/bots/fix-avatars/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/moderation/scan/route.ts": {
+      "maxDuration": 120
     }
   }
 }
