@@ -75,8 +75,8 @@ export async function GET(req: NextRequest) {
         where: { id: { in: likedPostIds } },
         select: { userId: true, hashtags: true },
       })
-      likedAuthorIds = [...new Set(likedPostData.map((p: any) => p.userId))]
-      const allTags = likedPostData
+      likedAuthorIds = [...new Set((likedPostData as any[]).map((p: any) => p.userId))]
+      const allTags = (likedPostData as any[])
         .map((p: any) => p.hashtags?.split(',').filter(Boolean) || [])
         .flat()
       likedHashtags = [...new Set(allTags)]
