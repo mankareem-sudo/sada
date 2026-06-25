@@ -115,9 +115,6 @@ async function callModel(
     responseFormat: 'text' | 'json'
   }
 ): Promise<ChatCompletionResult> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout (free models are slow)
-
   try {
     const body: any = {
       model,
@@ -142,7 +139,6 @@ async function callModel(
         'X-Title': 'Sada — Arabic Voice Platform',
       },
       body: JSON.stringify(body),
-      signal: controller.signal,
     })
 
     if (!res.ok) {
@@ -154,7 +150,6 @@ async function callModel(
     }
 
     const resText = await res.text()
-    console.log(`[OpenRouter] ${model} response length:`, resText.length)
     
     let data: any
     try {
@@ -165,7 +160,6 @@ async function callModel(
     }
     
     const content = data.choices?.[0]?.message?.content || ''
-    console.log(`[OpenRouter] ${model} content:`, content.slice(0, 100) || '(empty)')
 
     return {
       content,
@@ -175,10 +169,11 @@ async function callModel(
         completionTokens: data.usage?.completion_tokens,
         totalTokens: data.usage?.total_tokens,
       },
-      cost: 0, // Free models
+      cost: 0,
     }
-  } finally {
-    clearTimeout(timeout)
+  } catch (e: any) {
+    // Re-throw so chatCompletion can try next model
+    throw e
   }
 }
 
