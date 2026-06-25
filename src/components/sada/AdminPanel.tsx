@@ -75,7 +75,7 @@ const REASON_LABELS: Record<string, string> = {
 }
 
 export function AdminPanel() {
-  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation'>('stats')
+  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation' | 'bots'>('stats')
   const [stats, setStats] = useState<Stats>(null)
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [reports, setReports] = useState<Report[]>([])
@@ -83,6 +83,9 @@ export function AdminPanel() {
   const [moderationFilter, setModerationFilter] = useState<'pending' | 'approved' | 'removed' | 'warned'>('pending')
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState<string | null>(null)
+  const [seeding, setSeeding] = useState(false)
+  const [activating, setActivating] = useState(false)
+  const [botStatus, setBotStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   // New prompt form
@@ -174,6 +177,53 @@ export function AdminPanel() {
         loadModerationQueue(moderationFilter)
       }
     } catch {}
+  }
+
+  // === Bot Management ===
+  const seedBots = async (count: number = 100) => {
+    setSeeding(true)
+    setBotStatus(null)
+    try {
+      const res = await fetch('/api/bots/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setBotStatus(`✅ تم إنشاء ${data.created} بوت مصري${data.errors > 0 ? ` (${data.errors} أخطاء)` : ''}`)
+        loadStats() // Refresh stats
+      } else {
+        setBotStatus(`❌ ${data.error || 'فشل'}`)
+      }
+    } catch (e) {
+      setBotStatus('❌ فشل الاتصال')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  const activateBots = async (actions: number = 10) => {
+    setActivating(true)
+    setBotStatus(null)
+    try {
+      const res = await fetch('/api/bots/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setBotStatus(`✅ نشاط البوتات: ${data.postsCreated} بوست، ${data.likesGiven} لايك، ${data.commentsCreated} تعليق، ${data.voiceLikesGiven} لايك صوت`)
+        loadStats()
+      } else {
+        setBotStatus(`❌ ${data.error || 'فشل'}`)
+      }
+    } catch (e) {
+      setBotStatus('❌ فشل الاتصال')
+    } finally {
+      setActivating(false)
+    }
   }
 
   useEffect(() => {
@@ -296,7 +346,15 @@ export function AdminPanel() {
             tab === 'moderation' ? 'bg-background shadow' : 'text-muted-foreground'
           }`}
         >
-          🤖 المراجعة الذكية
+          🤖 المراجعة
+        </button>
+        <button
+          onClick={() => setTab('bots')}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
+            tab === 'bots' ? 'bg-background shadow' : 'text-muted-foreground'
+          }`}
+        >
+          👥 البوتات
         </button>
       </div>
 
@@ -742,6 +800,136 @@ export function AdminPanel() {
                 </Card>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Bots tab — Egyptian bot users management */}
+      {tab === 'bots' && (
+        <div className="space-y-4">
+          {/* Status message */}
+          {botStatus && (
+            <Card className="p-3 rounded-2xl bg-primary/5 border-primary/20">
+              <p className="text-sm text-primary">{botStatus}</p>
+            </Card>
+          )}
+
+          {/* Seed bots */}
+          <Card className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-500/20">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                  <span>👥</span>
+                  إنشاء بوتات مصريين
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  بوتات بأسماء وبايو وبوستات مصرية حقيقية. ينشئوا 100 بوت (50 ذكر، 50 أنثى).
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => seedBots(100)}
+                disabled={seeding}
+                className="flex-1 gap-2"
+              >
+                {seeding ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    جاري الإنشاء...
+                  </>
+                ) : (
+                  'إنشاء 100 بوت'
+                )}
+              </Button>
+              <Button
+                onClick={() => seedBots(20)}
+                disabled={seeding}
+                variant="outline"
+                className="gap-2"
+              >
+                +20 بس
+              </Button>
+            </div>
+          </Card>
+
+          {/* Activate bots */}
+          <Card className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
+            <div className="mb-3">
+              <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                <span>⚡</span>
+                تفعيل نشاط البوتات
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                البوتات هتنشر بوستات، تعمل لايك، وتعلّق بشكل عشوائي. زي الناس الحقيقيين.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                onClick={() => activateBots(5)}
+                disabled={activating}
+                variant="outline"
+                size="sm"
+                className="gap-1"
+              >
+                ⚡ 5 إجراءات
+              </Button>
+              <Button
+                onClick={() => activateBots(15)}
+                disabled={activating}
+                variant="outline"
+                size="sm"
+                className="gap-1"
+              >
+                ⚡ 15 إجراء
+              </Button>
+              <Button
+                onClick={() => activateBots(30)}
+                disabled={activating}
+                size="sm"
+                className="gap-1"
+              >
+                {activating ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    جاري...
+                  </>
+                ) : (
+                  '🚀 30 إجراء'
+                )}
+              </Button>
+            </div>
+          </Card>
+
+          {/* Info card */}
+          <Card className="p-4 rounded-2xl border-dashed">
+            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <span>ℹ️</span>
+              إزاي تستخدم البوتات
+            </h3>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>اضغط "إنشاء 100 بوت" — ينشئ 100 مستخدم مصري بأسماء وبايو حقيقية</li>
+              <li>اضغط "تفعيل" — البوتات تبدأ تنشر وتعلق وتعمل لايك بشكل عشوائي</li>
+              <li>كل ضغطة بتكون زي 5-30 إجراء عشوائي (بوست/لايك/تعليق)</li>
+              <li>البوتات بتستخدم لهجة مصرية حقيقية في البوستات والتعليقات</li>
+              <li>تقدر تكرر التفعيل كل شوية عشان البوتات تفضل نشيطة</li>
+            </ol>
+          </Card>
+
+          {/* Bot stats */}
+          {stats && (
+            <Card className="p-4 rounded-2xl">
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <div className="text-2xl font-bold tabular-nums text-primary">{stats.users}</div>
+                  <div className="text-[11px] text-muted-foreground">إجمالي المستخدمين</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold tabular-nums text-emerald-500">{stats.posts}</div>
+                  <div className="text-[11px] text-muted-foreground">إجمالي البوستات</div>
+                </div>
+              </div>
+            </Card>
           )}
         </div>
       )}
