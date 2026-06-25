@@ -56,17 +56,28 @@ export async function generateSmartComment(
         maxTokens: 150,
       })
 
-      if (!result.error && result.content && result.content.trim().length > 5) {
+      console.log('[SmartComment] AI result:', JSON.stringify({
+        hasContent: !!result.content,
+        contentLength: result.content?.length || 0,
+        model: result.model,
+        error: result.error,
+      }))
+
+      if (!result.error && result.content) {
         let comment = result.content.trim()
-        // Clean up: remove quotes, markdown
-        comment = comment.replace(/^["'`]|["'`]$/g, '').replace(/\*\*/g, '')
-        // Validate length
-        if (comment.length >= 5 && comment.length <= 280) {
+        // Clean up: remove quotes, markdown, extra whitespace
+        comment = comment.replace(/^["'`]|["'`]$/g, '').replace(/\*\*/g, '').trim()
+        // Take only the first 280 chars if longer
+        if (comment.length > 280) {
+          comment = comment.slice(0, 277) + '...'
+        }
+        // Accept any non-empty comment (even short ones like "كلامك صح")
+        if (comment.length >= 2) {
           return { comment, usedAI: true, model: result.model }
         }
       }
     } catch (e) {
-      // Fall through to keyword-based
+      console.warn('[SmartComment] AI failed:', e instanceof Error ? e.message : String(e))
     }
   }
 
