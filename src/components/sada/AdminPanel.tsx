@@ -925,8 +925,8 @@ export function AdminPanel() {
                   <div className="text-[11px] text-muted-foreground">إجمالي المستخدمين</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold tabular-nums text-emerald-500">{stats.posts}</div>
-                  <div className="text-[11px] text-muted-foreground">إجمالي البوستات</div>
+                  <div className="text-2xl font-bold tabular-nums text-emerald-500">{stats.voiceNotes}</div>
+                  <div className="text-[11px] text-muted-foreground">إجمالي الأصوات</div>
                 </div>
               </div>
             </Card>
