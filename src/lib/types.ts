@@ -85,6 +85,9 @@ export interface SadaProfile {
     bio?: string | null
     avatarColor: string
     avatarUrl?: string | null
+    voiceBioUrl?: string | null
+    voiceBioDuration?: number
+    isVerified?: boolean
     createdAt: string
   }
   stats: {
@@ -107,6 +110,7 @@ export type TabKey =
   | 'bookmarks'
   | 'admin'
   | 'messages'
+  | 'circles'
 
 export type ReportReason = 'religion' | 'politics' | 'insult' | 'spam' | 'other'
 

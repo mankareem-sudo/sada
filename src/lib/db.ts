@@ -509,7 +509,7 @@ function createTableHandler(tableName: string): any {
       }
       // Auto-set createdAt/updatedAt if not provided AND table has these columns
       // Session table doesn't have updatedAt, so we skip it for tables without it
-      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView']
+      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView', 'VoiceCircle', 'VoiceCircleMember']
       const nowIso = new Date().toISOString()
       if (!data.createdAt) data.createdAt = nowIso
       if (!data.updatedAt && !tablesWithoutUpdatedAt.includes(tableName)) {
@@ -595,7 +595,7 @@ function createTableHandler(tableName: string): any {
       // Build filter from where
       const filter = buildFilter(args.where)
       // Auto-update updatedAt if applicable (only for tables that have it)
-      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView']
+      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView', 'VoiceCircle', 'VoiceCircleMember']
       const updateData = { ...args.data }
       if (!tablesWithoutUpdatedAt.includes(tableName)) {
         if (!updateData.updatedAt) updateData.updatedAt = new Date().toISOString()
@@ -747,6 +747,9 @@ export const db = {
   // Voice Stories (24h auto-expire)
   voiceStory: createTableHandler('VoiceStory'),
   voiceStoryView: createTableHandler('VoiceStoryView'),
+  // Voice Circles (permanent voice groups)
+  voiceCircle: createTableHandler('VoiceCircle'),
+  voiceCircleMember: createTableHandler('VoiceCircleMember'),
   // For raw queries (used by migrate endpoint)
   $executeRawUnsafe: async (sql: string) => {
     // Use Supabase rpc to execute raw SQL

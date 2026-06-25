@@ -61,6 +61,7 @@ export function ProfileView({ username }: { username: string | null }) {
   const setUser = useSada((s) => s.setUser)
   const setViewedUsername = useSada((s) => s.setViewedUsername)
   const setRecorderOpen = useSada((s) => s.setRecorderOpen)
+  const openRecorder = useSada((s) => s.openRecorder)
   const setSettingsOpen = useSada((s) => s.setSettingsOpen)
   const openFollowList = useSada((s) => s.openFollowList)
   const setTab = useSada((s) => s.setTab)
@@ -291,6 +292,67 @@ export function ProfileView({ username }: { username: string | null }) {
             <div className="text-sm text-muted-foreground mb-1" dir="ltr">@{profile.user.username}</div>
             {profile.user.bio && <p className="text-sm mt-2 leading-relaxed">{profile.user.bio}</p>}
             <p className="text-[11px] text-muted-foreground mt-2">انضم في {formatArabicDate(profile.user.createdAt)}</p>
+
+            {/* Voice Bio — 30-second audio introduction */}
+            {(profile.user.voiceBioUrl || isMe) && (
+              <div className="mt-4 p-3 rounded-xl bg-gradient-to-br from-accent/10 to-transparent border border-accent/20">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-xs text-accent-foreground/80">
+                    <Mic className="h-3.5 w-3.5" />
+                    <span className="font-medium">تعريف صوتي</span>
+                  </div>
+                  {isMe && (
+                    <button
+                      onClick={() => openRecorder('voice-bio' as any)}
+                      className="text-[10px] text-muted-foreground hover:text-accent transition"
+                      title={profile.user.voiceBioUrl ? 'تغيير التعريف الصوتي' : 'أضف تعريف صوتي'}
+                    >
+                      {profile.user.voiceBioUrl ? 'تغيير' : 'سجّل'}
+                    </button>
+                  )}
+                </div>
+                {profile.user.voiceBioUrl ? (
+                  <>
+                    <VoicePlayer
+                      src={profile.user.voiceBioUrl}
+                      durationSec={profile.user.voiceBioDuration || 30}
+                      accent="accent"
+                      title="تعريف صوتي"
+                      artist={profile.user.name}
+                      album="بروفايل صدى"
+                      artworkUrl={profile.user.avatarUrl || undefined}
+                    />
+                    {isMe && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/profile/voice-bio', { method: 'DELETE' })
+                            if (res.ok) {
+                              setProfile({
+                                ...profile,
+                                user: { ...profile.user, voiceBioUrl: null, voiceBioDuration: 0 },
+                              })
+                              toast.success('تم حذف التعريف الصوتي')
+                            }
+                          } catch {
+                            toast.error('فشل الحذف')
+                          }
+                        }}
+                        className="text-[10px] text-muted-foreground hover:text-red-500 transition mt-2"
+                      >
+                        حذف التعريف الصوتي
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    {isMe
+                      ? 'سجّل تعريف صوتي قصير (30 ثانية) عشان الناس تتعرف عليك'
+                      : 'لم يسجّل تعريفاً صوتياً بعد'}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

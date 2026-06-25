@@ -12,6 +12,7 @@ import {
   Shield,
   Flame,
   Bookmark,
+  Circle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TabKey } from '@/lib/types'
@@ -37,6 +38,7 @@ export function BottomNav() {
   ]
 
   const rightTabs: { key: TabKey; label: string; icon: any }[] = [
+    { key: 'circles', label: 'دوائر', icon: Circle },
     { key: 'messages', label: 'رسايل', icon: MessageSquare },
     { key: 'notifications', label: 'إشعارات', icon: Bell },
     { key: 'profile', label: 'حسابي', icon: User },

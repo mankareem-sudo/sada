@@ -8,6 +8,7 @@ import { formatDuration } from '@/lib/format'
 import { toast } from 'sonner'
 
 const MAX_DURATION = 90
+const MAX_DURATION_VOICE_BIO = 30
 
 interface VoiceRecorderProps {
   open: boolean
@@ -16,8 +17,8 @@ interface VoiceRecorderProps {
   promptId?: string | null
   promptDate?: string
   promptText?: string
-  /** 'voice-note' (default) = regular voice note, 'story' = 24h voice story, 'duet' = voice reply */
-  mode?: 'voice-note' | 'story' | 'duet'
+  /** 'voice-note' (default) = regular voice note, 'story' = 24h voice story, 'duet' = voice reply, 'voice-bio' = 30s profile intro */
+  mode?: 'voice-note' | 'story' | 'duet' | 'voice-bio'
 }
 
 type Phase = 'idle' | 'recording' | 'reviewing' | 'uploading'
@@ -221,6 +222,14 @@ export function VoiceRecorder({
         }
         payload.parentVoiceNoteId = parentVoiceNoteId
         payload.description = description.trim() || undefined
+      } else if (mode === 'voice-bio') {
+        endpoint = '/api/profile/voice-bio'
+        // Voice bio: max 30 seconds
+        if (elapsed > MAX_DURATION_VOICE_BIO) {
+          toast.error(`التعريف الصوتي لازم يكون أقل من ${MAX_DURATION_VOICE_BIO} ثانية`)
+          setPhase('reviewing')
+          return
+        }
       } else {
         // voice-note (default)
         payload.promptId = promptId || undefined
@@ -248,6 +257,7 @@ export function VoiceRecorder({
       const successMsg =
         mode === 'story' ? 'تم نشر ستوريك 🎙️' :
         mode === 'duet' ? 'تم نشر ردك الصوتي 🎙️' :
+        mode === 'voice-bio' ? 'تم حفظ تعريفك الصوتي 🎙️' :
         'تم نشر صدى صوتك 🎙️'
       toast.success(successMsg)
       setDescription('')
@@ -274,7 +284,9 @@ export function VoiceRecorder({
                 ? 'سجّل ستوري صوتي'
                 : mode === 'duet'
                   ? 'سجّل رد صوتي (Duet)'
-                  : 'سجّل صدى صوتك'}
+                  : mode === 'voice-bio'
+                    ? 'سجّل تعريفك الصوتي'
+                    : 'سجّل صدى صوتك'}
           </h2>
           <button
             onClick={onClose}
@@ -285,7 +297,7 @@ export function VoiceRecorder({
           </button>
         </div>
 
-        {/* Mode indicator for stories/duets */}
+        {/* Mode indicator for stories/duets/voice-bio */}
         {mode === 'story' && (
           <div className="mb-4 p-2.5 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent-foreground/90 flex items-center gap-2">
             <span className="text-base">📸</span>
@@ -296,6 +308,12 @@ export function VoiceRecorder({
           <div className="mb-4 p-2.5 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent-foreground/90 flex items-center gap-2">
             <span className="text-base">🎙️</span>
             <span>رد صوتي — ردك هيظهر تحت الصدى الأصلي</span>
+          </div>
+        )}
+        {mode === 'voice-bio' && (
+          <div className="mb-4 p-2.5 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent-foreground/90 flex items-center gap-2">
+            <span className="text-base">👋</span>
+            <span>تعريف صوتي — عرّف بنفسك في 30 ثانية (هيظهر في بروفايلك)</span>
           </div>
         )}
 

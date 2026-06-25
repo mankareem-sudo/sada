@@ -10,6 +10,7 @@ import { FeedView } from '@/components/sada/FeedView'
 import { DiscoverView } from '@/components/sada/DiscoverView'
 import { TrendingView } from '@/components/sada/TrendingView'
 import { BookmarksView } from '@/components/sada/BookmarksView'
+import { CirclesView } from '@/components/sada/CirclesView'
 import { NotificationsView } from '@/components/sada/NotificationsView'
 import { ProfileView } from '@/components/sada/ProfileView'
 import { MessagesView } from '@/components/sada/MessagesView'
@@ -155,6 +156,7 @@ export default function Home() {
           <NotificationsView onOpenProfile={onOpenProfile} />
         )}
         {tab === 'messages' && <MessagesView />}
+        {tab === 'circles' && <CirclesView />}
         {tab === 'profile' && <ProfileView username={viewedUsername} />}
         {tab === 'admin' && user.isAdmin && <AdminPanel />}
       </main>
