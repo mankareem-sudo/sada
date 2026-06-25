@@ -10,7 +10,7 @@ import { useSada } from '@/lib/store'
 import { formatCount, formatArabicDate, timeAgo } from '@/lib/format'
 import type { SadaProfile } from '@/lib/types'
 import { toast } from 'sonner'
-import { UserPlus, UserCheck, Pencil, Trash2, Mic, Play, Users, UserPlus2, UserMinus, Globe, Lock } from 'lucide-react'
+import { UserPlus, UserCheck, Pencil, Trash2, Mic, Play, Users, UserPlus2, UserMinus, Globe, Lock, Eye, Pin } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,6 +70,7 @@ export function ProfileView({ username }: { username: string | null }) {
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [followBusy, setFollowBusy] = useState(false)
+  const [profileViews, setProfileViews] = useState<{ totalViews: number; uniqueViewers: number; recentViews: number } | null>(null)
   
   // Posts
   const [posts, setPosts] = useState<Post[]>([])
@@ -157,6 +158,34 @@ export function ProfileView({ username }: { username: string | null }) {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { if (profile) { loadPosts(); loadFriendsCount(); checkFriendship() } }, [profile, loadPosts, loadFriendsCount, checkFriendship])
+
+  // Record profile view + fetch view stats (only if viewing other's profile)
+  useEffect(() => {
+    if (!profile?.user?.id || isMe) return
+    // Record the view
+    fetch('/api/profile/views', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profileOwnerId: profile.user.id }),
+    }).catch(() => {})
+  }, [profile?.user?.id, isMe])
+
+  // Fetch view stats for the profile owner
+  useEffect(() => {
+    if (!isMe) return
+    fetch('/api/profile/views')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.totalViews !== undefined) {
+          setProfileViews({
+            totalViews: d.totalViews,
+            uniqueViewers: d.uniqueViewers,
+            recentViews: d.recentViews,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [isMe])
 
   const toggleFollow = async () => {
     if (!profile || !user) return
@@ -376,6 +405,29 @@ export function ProfileView({ username }: { username: string | null }) {
           </button>
         </div>
 
+        {/* Profile Views (only for the owner) */}
+        {isMe && profileViews && (
+          <div className="mt-3 p-3 rounded-xl bg-muted/20 border border-border/40">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">مشاهدات البروفايل</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-muted-foreground">
+                  <span className="font-bold text-foreground tabular-nums">{formatCount(profileViews.totalViews)}</span> إجمالي
+                </span>
+                <span className="text-muted-foreground">
+                  <span className="font-bold text-foreground tabular-nums">{formatCount(profileViews.uniqueViewers)}</span> فريد
+                </span>
+                <span className="text-muted-foreground">
+                  <span className="font-bold text-foreground tabular-nums">{formatCount(profileViews.recentViews)}</span> هذا الأسبوع
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-2 mt-5 flex-wrap">
           {isMe ? (
@@ -506,6 +558,12 @@ export function ProfileView({ username }: { username: string | null }) {
           <div className="space-y-3">
             {profile.voiceNotes.map((n) => (
               <Card key={n.id} className="p-4 sada-glass rounded-2xl sada-fade-up">
+                {(n as any).isPinned && (
+                  <div className="mb-2 flex items-center gap-1 text-[10px] text-primary">
+                    <Pin className="h-3 w-3" />
+                    <span>مثبت</span>
+                  </div>
+                )}
                 {n.prompt && (
                   <div className="mb-3 p-3 rounded-xl bg-primary/10 border border-primary/15">
                     <div className="text-[11px] text-primary/80 mb-1">رد على سؤال {formatArabicDate(n.prompt.date)}</div>
@@ -518,7 +576,36 @@ export function ProfileView({ username }: { username: string | null }) {
                   <span className="flex items-center gap-1"><Play className="h-3 w-3" />{formatCount(n.plays)} تشغيل</span>
                 </div>
                 {isMe && (
-                  <div className="flex justify-end mt-2">
+                  <div className="flex justify-end gap-3 mt-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/voice-notes/pin', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ voiceNoteId: n.id, isPinned: !(n as any).isPinned }),
+                          })
+                          const data = await res.json()
+                          if (res.ok) {
+                            // Update local state
+                            setProfile((p) => p ? {
+                              ...p,
+                              voiceNotes: p.voiceNotes.map((vn) =>
+                                vn.id === n.id ? { ...vn, isPinned: data.isPinned } as any : vn
+                              ),
+                            } : null)
+                            toast.success(data.isPinned ? 'تم تثبيت الصدى على بروفايلك' : 'تم إلغاء التثبيت')
+                          } else {
+                            toast.error(data.error)
+                          }
+                        } catch {
+                          toast.error('فشل التثبيت')
+                        }
+                      }}
+                      className={`text-xs hover:underline flex items-center gap-1 ${(n as any).isPinned ? 'text-primary' : 'text-muted-foreground'}`}
+                    >
+                      <Pin className="h-3 w-3" /> {(n as any).isPinned ? 'إلغاء التثبيت' : 'تثبيت'}
+                    </button>
                     <button onClick={() => setDeleteId(n.id)} className="text-xs text-destructive hover:underline flex items-center gap-1">
                       <Trash2 className="h-3 w-3" /> حذف
                     </button>

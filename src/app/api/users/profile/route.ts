@@ -112,25 +112,33 @@ export async function GET(req: NextRequest) {
     },
     isFollowing,
     isMe: currentUser?.id === target.id,
-    voiceNotes: (voiceNotes as any[]).map((n) => ({
-      id: n.id,
-      durationSec: n.durationSec,
-      mimeType: n.mimeType,
-      audioData: n.audioData,
-      description: n.description,
-      transcript: n.transcript,
-      plays: n.plays,
-      likesCount: likesCounts[n.id] || 0,
-      commentsCount: commentsCounts[n.id] || 0,
-      createdAt: n.createdAt,
-      prompt: n.promptId
-        ? {
-            id: promptsMap[n.promptId]?.id,
-            text: promptsMap[n.promptId]?.text,
-            date: promptsMap[n.promptId]?.date,
-          }
-        : null,
-    })),
+    voiceNotes: (voiceNotes as any[])
+      .sort((a: any, b: any) => {
+        // Pinned notes first, then by recency
+        if (a.isPinned && !b.isPinned) return -1
+        if (!a.isPinned && b.isPinned) return 1
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      .map((n: any) => ({
+        id: n.id,
+        durationSec: n.durationSec,
+        mimeType: n.mimeType,
+        audioData: n.audioData,
+        description: n.description,
+        transcript: n.transcript,
+        plays: n.plays,
+        isPinned: n.isPinned || false,
+        likesCount: likesCounts[n.id] || 0,
+        commentsCount: commentsCounts[n.id] || 0,
+        createdAt: n.createdAt,
+        prompt: n.promptId
+          ? {
+              id: promptsMap[n.promptId]?.id,
+              text: promptsMap[n.promptId]?.text,
+              date: promptsMap[n.promptId]?.date,
+            }
+          : null,
+      })),
   })
 }
 
