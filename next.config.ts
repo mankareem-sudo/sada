@@ -44,18 +44,19 @@ const nextConfig: NextConfig = {
           // HSTS — force HTTPS for 2 years (including subdomains)
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           // CSP — Content Security Policy
-          // Allow self, Vercel, Supabase, and inline styles/scripts (Next.js requires this)
+          // Allow self, Vercel, Supabase, Google Identity Services, and inline styles/scripts (Next.js requires this)
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://accounts.google.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "audio-src 'self' data: blob:",
               "media-src 'self' data: blob:",
-              "connect-src 'self' https://*.supabase.co https://*.vercel.app https://api.z.ai",
+              "connect-src 'self' https://*.supabase.co https://*.vercel.app https://api.z.ai https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
+              "frame-src 'self' https://accounts.google.com",
               "frame-ancestors 'none'",
               "form-action 'self'",
               "base-uri 'self'",
@@ -65,7 +66,8 @@ const nextConfig: NextConfig = {
             ].join('; '),
           },
           // Cross-Origin policies
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          // COOP: same-origin-allow-popups allows Google Identity Services popup to communicate back via postMessage
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
           { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
         ],
       },
