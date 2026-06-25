@@ -507,7 +507,10 @@ export function PostCard({
                       {comments.map((c) => (
                         <div key={c.id} className="flex gap-2 items-start">
                           <button
-                            onClick={() => c.user?.username && onOpenProfile(c.user.username)}
+                            onClick={() => {
+                              const username = c.user?.username
+                              if (username) onOpenProfile(username)
+                            }}
                             className="shrink-0"
                             title={c.user?.name}
                           >
@@ -517,7 +520,10 @@ export function PostCard({
                             <div className="bg-muted/40 rounded-2xl px-3 py-2">
                               <div className="flex items-center gap-2 mb-0.5">
                                 <button
-                                  onClick={() => c.user?.username && onOpenProfile(c.user.username)}
+                                  onClick={() => {
+                                    const username = c.user?.username
+                                    if (username) onOpenProfile(username)
+                                  }}
                                   className="font-medium text-sm hover:underline"
                                 >
                                   {c.user?.name}
