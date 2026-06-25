@@ -24,7 +24,6 @@ export async function GET(req: NextRequest) {
     if (!user) {
       // Query sequentially to avoid Promise.all issues with db wrapper
       const trendingVoices = await db.voiceNote.findMany({
-        where: { isPublic: true },
         orderBy: { createdAt: 'desc' },
         take: 5,
       })
@@ -204,7 +203,6 @@ export async function GET(req: NextRequest) {
       const voices = await db.voiceNote.findMany({
         where: {
           userId: { in: interestingAuthorIds },
-          isPublic: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 15,
@@ -224,9 +222,6 @@ export async function GET(req: NextRequest) {
 
     // === Source D: Trending voices (weight: 0.6) — for diversity ===
     const trendingVoices = await db.voiceNote.findMany({
-      where: {
-        isPublic: true,
-      },
       orderBy: { createdAt: 'desc' },
       take: 10,
     })
