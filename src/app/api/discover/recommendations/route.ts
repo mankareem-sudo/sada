@@ -22,18 +22,17 @@ export async function GET(req: NextRequest) {
 
     // === Anonymous / new user fallback: return trending + recent ===
     if (!user) {
-      const [trendingVoices, recentPosts] = await Promise.all([
-        db.voiceNote.findMany({
-          where: { isPublic: true },
-          orderBy: [{ plays: 'desc' }, { createdAt: 'desc' }],
-          take: 5,
-        }),
-        db.post.findMany({
-          where: { privacy: 'public', isPublished: true },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        }),
-      ])
+      // Query sequentially to avoid Promise.all issues with db wrapper
+      const trendingVoices = await db.voiceNote.findMany({
+        where: { isPublic: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      })
+      const recentPosts = await db.post.findMany({
+        where: { privacy: 'public' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      })
 
       return NextResponse.json({
         recommendations: [
@@ -104,14 +103,8 @@ export async function GET(req: NextRequest) {
       likedVoiceAuthorIds = [...new Set((likedVoiceData as any[]).map((v: any) => v.userId))]
     }
 
-    // 3. Following
-    const following = await db.follow.findMany({
-      where: { followerId: user.id },
-      select: { followeeId: true },
-    })
-    const followingIds = (following as any[]).map((f: any) => f.followeeId)
-
-    // 4. Friends — query both directions separately (Supabase wrapper doesn't support OR well)
+    // Get user's friends + following — query sequentially
+    // (Supabase wrapper has issues with Promise.all in some edge cases)
     const friendsAsRequester = await db.friendship.findMany({
       where: { requesterId: user.id, status: 'accepted' },
       select: { addresseeId: true },
@@ -120,10 +113,15 @@ export async function GET(req: NextRequest) {
       where: { addresseeId: user.id, status: 'accepted' },
       select: { requesterId: true },
     })
+    const following = await db.follow.findMany({
+      where: { followerId: user.id },
+      select: { followeeId: true },
+    })
     const friendIds = [
       ...(friendsAsRequester as any[]).map((f: any) => f.addresseeId),
       ...(friendsAsAddressee as any[]).map((f: any) => f.requesterId),
     ]
+    const followingIds = (following as any[]).map((f: any) => f.followeeId)
 
     // Already-seen posts (liked + own)
     const seenPostIds = new Set([...likedPostIds])
@@ -208,7 +206,7 @@ export async function GET(req: NextRequest) {
           userId: { in: interestingAuthorIds },
           isPublic: true,
         },
-        orderBy: [{ plays: 'desc' }, { createdAt: 'desc' }],
+        orderBy: { createdAt: 'desc' },
         take: 15,
       })
       for (const v of voices as any[]) {
@@ -229,7 +227,7 @@ export async function GET(req: NextRequest) {
       where: {
         isPublic: true,
       },
-      orderBy: [{ plays: 'desc' }, { createdAt: 'desc' }],
+      orderBy: { createdAt: 'desc' },
       take: 10,
     })
     for (const v of trendingVoices as any[]) {
