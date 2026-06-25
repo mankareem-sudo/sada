@@ -116,7 +116,7 @@ async function callModel(
   }
 ): Promise<ChatCompletionResult> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout (was 15s)
+  const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout (free models are slow)
 
   try {
     const body: any = {
