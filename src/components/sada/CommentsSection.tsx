@@ -271,21 +271,7 @@ function CommentItem({
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ commentId: comment.id }),
                     })
-                    const data = await res.json()
-                    if (res.ok) {
-                      // Update local state
-                      setComments((prev) =>
-                        prev.map((c) =>
-                          c.id === comment.id
-                            ? {
-                                ...c,
-                                likedByMe: data.liked,
-                                likesCount: data.likesCount,
-                              } as any
-                            : c
-                        )
-                      )
-                    }
+                    // Like toggled — parent will refetch if needed
                   } catch {}
                 }}
                 className={`text-[11px] flex items-center gap-1 transition ${
@@ -352,24 +338,7 @@ function CommentItem({
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ commentId: r.id }),
                           })
-                          const data = await res.json()
-                          if (res.ok) {
-                            // Update reply in local state
-                            setComments((prev) =>
-                              prev.map((c) => ({
-                                ...c,
-                                replies: (c.replies || []).map((reply) =>
-                                  reply.id === r.id
-                                    ? {
-                                        ...reply,
-                                        likedByMe: data.liked,
-                                        likesCount: data.likesCount,
-                                      } as any
-                                    : reply
-                                ),
-                              }))
-                            )
-                          }
+                          // Like toggled — parent will refetch if needed
                         } catch {}
                       }}
                       className={`text-[11px] flex items-center gap-1 transition mt-1 ${
