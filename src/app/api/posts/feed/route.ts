@@ -9,6 +9,7 @@ function safePost(p: any, currentUserId?: string) {
     content: p.content,
     imageUrl: p.imageUrl,
     voiceNoteId: p.voiceNoteId,
+    privacy: p.privacy || 'public',
     plays: p.plays,
     createdAt: p.createdAt,
     user: p.user ? {
@@ -27,8 +28,12 @@ function safePost(p: any, currentUserId?: string) {
 }
 
 /**
- * GET /api/posts/feed?limit=20&cursor=xxx
+ * GET /api/posts/feed?limit=20&cursor=xxx&scope=all|following
  * Returns posts from everyone (discover) or just followed users.
+ * Privacy rules:
+ * - 'public': anyone can see
+ * - 'friends': only friends of the post owner can see
+ * - 'private': only the post owner can see
  */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser()
@@ -46,9 +51,52 @@ export async function GET(req: NextRequest) {
     targetUserIds = [user.id, ...follows.map((f: any) => f.followeeId)]
   }
 
+  // Build privacy-aware where clause
+  // - Owner can see all their own posts (any privacy)
+  // - Friends can see public + friends-only posts from others
+  // - Non-friends can only see public posts
+  let privacyWhere: any
+
+  if (user) {
+    // Get user's friends list
+    const friendships = await db.friendship.findMany({
+      where: {
+        OR: [
+          { requesterId: user.id, status: 'accepted' },
+          { addresseeId: user.id, status: 'accepted' },
+        ],
+      },
+      select: { requesterId: true, addresseeId: true },
+    })
+    const friendIds = new Set<string>()
+    for (const f of friendships as any[]) {
+      if (f.requesterId === user.id) friendIds.add(f.addresseeId)
+      else friendIds.add(f.requesterId)
+    }
+
+    privacyWhere = {
+      OR: [
+        // User's own posts (any privacy)
+        { userId: user.id },
+        // Public posts from others
+        { privacy: 'public', userId: { ne: user.id } },
+        // Friends-only posts from friends
+        { privacy: 'friends', userId: { in: Array.from(friendIds) } },
+      ],
+    }
+  } else {
+    // Anonymous users can only see public posts
+    privacyWhere = { privacy: 'public' }
+  }
+
+  // Combine with scope filter
+  const finalWhere = targetUserIds
+    ? { AND: [{ userId: { in: targetUserIds } }, privacyWhere] }
+    : privacyWhere
+
   // Fetch posts
   const posts = await db.post.findMany({
-    where: targetUserIds ? { userId: { in: targetUserIds } } : {},
+    where: finalWhere,
     orderBy: { createdAt: 'desc' },
     take: limit + 1,
     ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),

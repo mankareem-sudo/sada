@@ -80,7 +80,7 @@ export function VoiceNoteCard({
     } catch {
       setLiked(!newLiked)
       setLikesCount((c) => Math.max(0, c + (newLiked ? -1 : 1)))
-      toast.error('مفيش نتال، حاول مرة تانية')
+      toast.error('مفيش إنترنت، حاول مرة تانية')
     }
   }
 

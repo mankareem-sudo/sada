@@ -22,7 +22,11 @@ const APP_NAME_AR = process.env.NEXT_PUBLIC_APP_NAME_AR || "صدى";
 const DEVELOPER = process.env.NEXT_PUBLIC_DEVELOPER || "Sada Team";
 
 export const metadata: Metadata = {
-  title: `${APP_NAME_AR} — منصة الحوار الصوتي العربي`,
+  metadataBase: new URL("https://my-project-one-lake-82.vercel.app"),
+  title: {
+    default: `${APP_NAME_AR} — منصة الحوار الصوتي العربي`,
+    template: `%s | ${APP_NAME_AR}`,
+  },
   description:
     `${APP_NAME_AR}: منصة اجتماعية صوتية عربية. كل يوم سؤال واحد، وإجابات صوتية مدتها 90 ثانية. منصة للحوار الهادئ بعيداً عن السخرية والإساءة.`,
   keywords: [
@@ -33,6 +37,10 @@ export const metadata: Metadata = {
     "عربي",
     "voice notes",
     "daily prompt",
+    "منصة عربية",
+    "تسجيلات صوتية",
+    "سؤال يومي",
+    "حوار هادئ",
   ],
   authors: [{ name: DEVELOPER }],
   applicationName: APP_NAME,
@@ -42,6 +50,13 @@ export const metadata: Metadata = {
     telephone: false,
     address: false,
     email: false,
+  },
+  alternates: {
+    canonical: "/",
+    languages: {
+      "ar": "/",
+      "en": "/",
+    },
   },
   appleWebApp: {
     capable: true,
@@ -55,11 +70,31 @@ export const metadata: Metadata = {
     siteName: APP_NAME_AR,
     type: "website",
     locale: "ar_AR",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: `${APP_NAME_AR} — منصة الحوار الصوتي العربي`,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: APP_NAME_AR,
     description: "منصة الحوار الصوتي العربي",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 

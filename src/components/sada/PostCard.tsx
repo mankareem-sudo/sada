@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag, Pencil, Pin, Ban } from 'lucide-react'
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag, Pencil, Pin, Ban, Globe, Lock, Users } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { formatCount, timeAgo } from '@/lib/format'
 import { toast } from 'sonner'
@@ -285,7 +285,18 @@ export function PostCard({
               <Avatar name={post.user?.name || '?'} color={post.user?.avatarColor || '#888'} imageUrl={post.user?.avatarUrl} size="md" />
               <div className="text-right">
                 <div className="font-semibold text-sm group-hover:underline">{post.user?.name}</div>
-                <div className="text-xs text-muted-foreground">@{post.user?.username} · {timeAgo(post.createdAt)}</div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  @{post.user?.username} · {timeAgo(post.createdAt)}
+                  {post.privacy && post.privacy !== 'public' && (
+                    <span className="inline-flex items-center" title={post.privacy === 'friends' ? 'أصدقاء' : 'خاص'}>
+                      {post.privacy === 'friends' ? (
+                        <Users className="h-3 w-3" />
+                      ) : (
+                        <Lock className="h-3 w-3" />
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
             {user && (
@@ -384,7 +395,7 @@ export function PostCard({
           {/* Image */}
           {post.imageUrl && (
             <div className="relative cursor-pointer" onDoubleClick={handleDoubleClick} onClick={() => setImageViewer(post.imageUrl || null)}>
-              <img src={post.imageUrl} alt="Post" className="w-full max-h-[600px] object-cover" />
+              <img src={post.imageUrl} alt="Post" className="w-full max-h-[600px] object-cover" loading="lazy" />
               <AnimatePresence>
                 {heartBurst && (
                   <motion.div
@@ -437,7 +448,7 @@ export function PostCard({
                       <div className="flex-1 space-y-2">
                         {commentImage && (
                           <div className="relative inline-block">
-                            <img src={commentImage} alt="Comment" className="max-h-32 rounded-lg" />
+                            <img src={commentImage} alt="Comment" className="max-h-32 rounded-lg" loading="lazy" />
                             <button onClick={() => setCommentImage(null)} className="absolute top-1 right-1 bg-black/60 rounded-full p-1">
                               <X className="h-3 w-3 text-white" />
                             </button>
@@ -503,7 +514,7 @@ export function PostCard({
                               </div>
                               {c.content && <p className="text-sm whitespace-pre-wrap">{c.content}</p>}
                             </div>
-                            {c.imageUrl && <img src={c.imageUrl} alt="Comment" className="mt-1 max-h-40 rounded-lg" />}
+                            {c.imageUrl && <img src={c.imageUrl} alt="Comment" className="mt-1 max-h-40 rounded-lg" loading="lazy" />}
                             {c.voiceData && <VoicePlayer src={c.voiceData} durationSec={c.voiceDuration || 0} className="mt-1" />}
                           </div>
                         </div>

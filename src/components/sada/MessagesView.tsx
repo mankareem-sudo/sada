@@ -228,7 +228,7 @@ export function MessagesView() {
                   }`}
                 >
                   {msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
-                  {msg.imageUrl && <img src={msg.imageUrl} alt="" className="mt-1 max-h-40 rounded-lg" />}
+                  {msg.imageUrl && <img src={msg.imageUrl} alt="" className="mt-1 max-h-40 rounded-lg" loading="lazy" />}
                   {msg.voiceData && (
                     <div className="mt-1">
                       <VoicePlayer src={msg.voiceData} durationSec={msg.voiceDuration || 0} accent={isMine ? 'accent' : 'primary'} />
@@ -249,7 +249,7 @@ export function MessagesView() {
       <div className="border-t border-border/30 pt-3">
         {commentImage && (
           <div className="relative inline-block mb-2">
-            <img src={commentImage} alt="" className="max-h-20 rounded-lg" />
+            <img src={commentImage} alt="" className="max-h-20 rounded-lg" loading="lazy" />
             <button onClick={() => setCommentImage(null)} className="absolute top-1 right-1 bg-black/60 rounded-full p-1">
               <X className="h-3 w-3 text-white" />
             </button>

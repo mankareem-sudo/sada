@@ -311,7 +311,7 @@ export const translations: Translations = {
   'report.alreadyReported': { ar: 'بلّغت عن هذا المحتوى من قبل', en: 'You already reported this content' },
 
   // === Errors ===
-  'error.network': { ar: 'مفيش نتال، حاول مرة تانية', en: 'No network, try again' },
+  'error.network': { ar: 'مفيش إنترنت، حاول مرة تانية', en: 'No network, try again' },
   'error.unknown': { ar: 'حدث خطأ، حاول مرة تانية', en: 'An error occurred, try again' },
   'error.unauthorized': { ar: 'غير مسموح', en: 'Unauthorized' },
   'error.notFound': { ar: 'غير موجود', en: 'Not found' },

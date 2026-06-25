@@ -122,7 +122,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
               exit={{ opacity: 0, height: 0 }}
               className="relative mt-3 overflow-hidden rounded-xl"
             >
-              <img src={image} alt="Preview" className="w-full max-h-64 object-cover" />
+              <img src={image} alt="Preview" className="w-full max-h-64 object-cover" loading="lazy" />
               <button
                 onClick={() => setImage(null)}
                 className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 hover:bg-black/80"
