@@ -21,16 +21,16 @@ export async function GET(req: NextRequest) {
 
     const now = new Date().toISOString()
 
-    // Get user's friends + following
-    const [friendships, follows] = await Promise.all([
+    // Get user's friends + following — query both directions separately
+    // (Supabase wrapper doesn't support OR well)
+    const [friendsAsRequester, friendsAsAddressee, follows] = await Promise.all([
       db.friendship.findMany({
-        where: {
-          OR: [
-            { requesterId: user.id, status: 'accepted' },
-            { addresseeId: user.id, status: 'accepted' },
-          ],
-        },
-        select: { requesterId: true, addresseeId: true },
+        where: { requesterId: user.id, status: 'accepted' },
+        select: { addresseeId: true },
+      }),
+      db.friendship.findMany({
+        where: { addresseeId: user.id, status: 'accepted' },
+        select: { requesterId: true },
       }),
       db.follow.findMany({
         where: { followerId: user.id },
@@ -38,10 +38,11 @@ export async function GET(req: NextRequest) {
       }),
     ])
 
-    const friendIds = friendships.map((f: any) =>
-      f.requesterId === user.id ? f.addresseeId : f.requesterId
-    )
-    const followingIds = follows.map((f: any) => f.followeeId)
+    const friendIds = [
+      ...(friendsAsRequester as any[]).map((f: any) => f.addresseeId),
+      ...(friendsAsAddressee as any[]).map((f: any) => f.requesterId),
+    ]
+    const followingIds = (follows as any[]).map((f: any) => f.followeeId)
 
     // Combine: me + friends + following
     const authorIds = [...new Set([user.id, ...friendIds, ...followingIds])]

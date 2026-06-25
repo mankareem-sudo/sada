@@ -6,13 +6,13 @@ import { getCurrentUser } from '@/lib/auth'
  * GET /api/discover/recommendations?limit=10
  *
  * AI-style recommendation algorithm based on:
- * 1. Content the user liked (similar authors, similar hashtags)
+ * 1. Content the user liked (similar authors)
  * 2. Users the user follows (their best posts)
- * 3. Interests selected during onboarding
- * 4. Trending in user's region/language
+ * 3. Friends' recent activity
+ * 4. Trending content
  * 5. Diversity (avoid showing too much from same author)
  *
- * Returns mixed content: voice notes + posts
+ * Uses simple Supabase-compatible queries (no Prisma relation filters).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -37,18 +37,20 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         recommendations: [
-          ...trendingVoices.map((v: any) => ({
+          ...(trendingVoices as any[]).map((v: any) => ({
             id: v.id,
-            type: 'voice',
+            type: 'voice' as const,
             title: v.transcript?.slice(0, 100) || 'تسجيل صوتي',
+            authorId: v.userId,
             createdAt: v.createdAt,
             score: (v.plays || 0) * 0.01,
             reason: 'رائج الآن',
           })),
-          ...recentPosts.map((p: any) => ({
+          ...(recentPosts as any[]).map((p: any) => ({
             id: p.id,
-            type: 'post',
+            type: 'post' as const,
             title: p.content?.slice(0, 100) || 'منشور',
+            authorId: p.userId,
             createdAt: p.createdAt,
             score: 0.5,
             reason: 'حديث',
@@ -58,14 +60,14 @@ export async function GET(req: NextRequest) {
     }
 
     // === Collect signals ===
-    // 1. User's liked posts (last 50)
+    // 1. User's liked posts (last 50) — get post IDs
     const likedPosts = await db.postLike.findMany({
       where: { userId: user.id },
       select: { postId: true },
       take: 50,
       orderBy: { createdAt: 'desc' },
     })
-    const likedPostIds = likedPosts.map((l: any) => l.postId)
+    const likedPostIds = (likedPosts as any[]).map((l: any) => l.postId)
 
     // Get authors of liked posts
     let likedAuthorIds: string[] = []
@@ -82,37 +84,48 @@ export async function GET(req: NextRequest) {
       likedHashtags = [...new Set(allTags)]
     }
 
-    // 2. User's liked voice notes
-    const likedVoices = await db.voiceNote.findMany({
-      where: { likes: { some: { userId: user.id } } },
-      select: { userId: true, promptId: true },
-      take: 30,
+    // 2. User's liked voice notes — get voice note IDs first, then authors
+    const likedVoiceRecords = await db.like.findMany({
+      where: { userId: user.id },
+      select: { voiceNoteId: true },
+      take: 50,
       orderBy: { createdAt: 'desc' },
     })
-    const likedVoiceAuthorIds = [...new Set(likedVoices.map((v: any) => v.userId))]
+    const likedVoiceIds = (likedVoiceRecords as any[])
+      .map((l: any) => l.voiceNoteId)
+      .filter(Boolean)
+
+    let likedVoiceAuthorIds: string[] = []
+    if (likedVoiceIds.length > 0) {
+      const likedVoiceData = await db.voiceNote.findMany({
+        where: { id: { in: likedVoiceIds } },
+        select: { userId: true },
+      })
+      likedVoiceAuthorIds = [...new Set((likedVoiceData as any[]).map((v: any) => v.userId))]
+    }
 
     // 3. Following
     const following = await db.follow.findMany({
       where: { followerId: user.id },
       select: { followeeId: true },
     })
-    const followingIds = following.map((f: any) => f.followeeId)
+    const followingIds = (following as any[]).map((f: any) => f.followeeId)
 
-    // 4. Friends
-    const friendships = await db.friendship.findMany({
-      where: {
-        OR: [
-          { requesterId: user.id, status: 'accepted' },
-          { addresseeId: user.id, status: 'accepted' },
-        ],
-      },
-      select: { requesterId: true, addresseeId: true },
+    // 4. Friends — query both directions separately (Supabase wrapper doesn't support OR well)
+    const friendsAsRequester = await db.friendship.findMany({
+      where: { requesterId: user.id, status: 'accepted' },
+      select: { addresseeId: true },
     })
-    const friendIds = friendships.map((f: any) =>
-      f.requesterId === user.id ? f.addresseeId : f.requesterId
-    )
+    const friendsAsAddressee = await db.friendship.findMany({
+      where: { addresseeId: user.id, status: 'accepted' },
+      select: { requesterId: true },
+    })
+    const friendIds = [
+      ...(friendsAsRequester as any[]).map((f: any) => f.addresseeId),
+      ...(friendsAsAddressee as any[]).map((f: any) => f.requesterId),
+    ]
 
-    // 5. Already-seen posts (liked + own)
+    // Already-seen posts (liked + own)
     const seenPostIds = new Set([...likedPostIds])
 
     // === Build recommendation candidates ===
@@ -134,7 +147,6 @@ export async function GET(req: NextRequest) {
       const postsFromLikedAuthors = await db.post.findMany({
         where: {
           userId: { in: likedAuthorIds },
-          id: { notIn: Array.from(seenPostIds) },
           privacy: { in: ['public', 'friends'] },
           isPublished: true,
         },
@@ -142,6 +154,7 @@ export async function GET(req: NextRequest) {
         take: 20,
       })
       for (const p of postsFromLikedAuthors as any[]) {
+        if (seenPostIds.has(p.id)) continue
         candidates.push({
           id: p.id,
           type: 'post',
@@ -157,21 +170,22 @@ export async function GET(req: NextRequest) {
 
     // === Source B: Posts with matching hashtags (weight: 0.85) ===
     if (likedHashtags.length > 0) {
-      // Use simple contains filter
-      const hashtagPosts = await db.post.findMany({
+      // Query posts and filter by hashtag in memory (Supabase wrapper doesn't support OR on same column)
+      const recentPosts = await db.post.findMany({
         where: {
-          id: { notIn: Array.from(seenPostIds) },
           privacy: { in: ['public', 'friends'] },
           isPublished: true,
-          OR: likedHashtags.slice(0, 5).map(tag => ({
-            hashtags: { contains: tag },
-          })),
         },
         orderBy: { createdAt: 'desc' },
-        take: 15,
+        take: 100,
       })
-      for (const p of hashtagPosts as any[]) {
-        if (!candidates.find(c => c.id === p.id)) {
+      const topHashtags = likedHashtags.slice(0, 5)
+      for (const p of recentPosts as any[]) {
+        if (seenPostIds.has(p.id)) continue
+        if (!p.hashtags) continue
+        const postTags = p.hashtags.split(',').filter(Boolean)
+        const hasMatch = postTags.some((t: string) => topHashtags.includes(t))
+        if (hasMatch && !candidates.find(c => c.id === p.id)) {
           candidates.push({
             id: p.id,
             type: 'post',
@@ -179,7 +193,7 @@ export async function GET(req: NextRequest) {
             authorId: p.userId,
             createdAt: p.createdAt,
             score: 0.85,
-            reason: `موضوعات تهمك: ${likedHashtags.slice(0, 3).map(t => '#' + t).join(' ')}`,
+            reason: `موضوعات تهمك: ${topHashtags.slice(0, 3).map(t => '#' + t).join(' ')}`,
             hashtags: p.hashtags,
           })
         }
@@ -214,12 +228,12 @@ export async function GET(req: NextRequest) {
     const trendingVoices = await db.voiceNote.findMany({
       where: {
         isPublic: true,
-        userId: { not: user.id },
       },
       orderBy: [{ plays: 'desc' }, { createdAt: 'desc' }],
       take: 10,
     })
     for (const v of trendingVoices as any[]) {
+      if (v.userId === user.id) continue
       candidates.push({
         id: v.id,
         type: 'voice',
@@ -236,15 +250,16 @@ export async function GET(req: NextRequest) {
       const friendsPosts = await db.post.findMany({
         where: {
           userId: { in: friendIds },
-          id: { notIn: Array.from(seenPostIds) },
           privacy: { in: ['public', 'friends'] },
           isPublished: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
       })
+      const friendRecs: Candidate[] = []
       for (const p of friendsPosts as any[]) {
-        candidates.unshift({
+        if (seenPostIds.has(p.id)) continue
+        friendRecs.push({
           id: p.id,
           type: 'post',
           title: p.content?.slice(0, 100) || 'منشور',
@@ -255,6 +270,8 @@ export async function GET(req: NextRequest) {
           hashtags: p.hashtags,
         })
       }
+      // Friends recommendations go to the top
+      candidates.unshift(...friendRecs)
     }
 
     // === Diversity: limit to 2 items per author max ===
@@ -293,7 +310,7 @@ export async function GET(req: NextRequest) {
           },
         })
       : []
-    const authorMap = new Map(authors.map((a: any) => [a.id, a]))
+    const authorMap = new Map((authors as any[]).map((a: any) => [a.id, a]))
 
     return NextResponse.json({
       recommendations: finalRecs.map(c => ({
