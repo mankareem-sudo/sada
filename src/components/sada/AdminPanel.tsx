@@ -214,7 +214,7 @@ export function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        setBotStatus(`✅ نشاط البوتات: ${data.postsCreated} بوست، ${data.likesGiven} لايك، ${data.commentsCreated} تعليق، ${data.voiceLikesGiven} لايك صوت`)
+        setBotStatus(`✅ نشاط البوتات: ${data.postsCreated} بوست، ${data.likesGiven} لايك، ${data.commentsCreated} تعليق (${data.aiComments} ذكي AI)، ${data.voiceLikesGiven} لايك صوت`)
         loadStats()
       } else {
         setBotStatus(`❌ ${data.error || 'فشل'}`)
@@ -223,6 +223,27 @@ export function AdminPanel() {
       setBotStatus('❌ فشل الاتصال')
     } finally {
       setActivating(false)
+    }
+  }
+
+  const fixAvatars = async () => {
+    setSeeding(true)
+    setBotStatus(null)
+    try {
+      const res = await fetch('/api/bots/fix-avatars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setBotStatus(`✅ تم تحديث ${data.updated} صورة بروفايل للبوتات`)
+      } else {
+        setBotStatus(`❌ ${data.error || 'فشل'}`)
+      }
+    } catch (e) {
+      setBotStatus('❌ فشل الاتصال')
+    } finally {
+      setSeeding(false)
     }
   }
 
@@ -849,6 +870,15 @@ export function AdminPanel() {
                 className="gap-2"
               >
                 +20 بس
+              </Button>
+              <Button
+                onClick={fixAvatars}
+                disabled={seeding}
+                variant="outline"
+                className="gap-2"
+                title="تحديث صور البروفايل للبوتات الموجودة"
+              >
+                🖼️ صور
               </Button>
             </div>
           </Card>

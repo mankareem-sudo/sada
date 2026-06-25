@@ -8,6 +8,30 @@ import {
 } from '@/lib/egyptian-bots'
 
 /**
+ * Generate a profile picture URL for a bot user.
+ * Uses DiceBear API which generates diverse, consistent avatars from a seed.
+ *
+ * Styles (alternated for variety):
+ * - avataaars: cartoon-style diverse avatars
+ * - personas: more realistic illustrations
+ * - micah: simple face illustrations
+ * - lorelei: artistic portraits
+ * - notionists: notion-style avatars
+ * - open-peeps: hand-drawn style
+ */
+function generateAvatarUrl(username: string, gender: 'male' | 'female'): string {
+  // Alternate between different avatar styles for variety
+  const styles = gender === 'male'
+    ? ['avataaars', 'personas', 'micah', 'notionists', 'open-peeps']
+    : ['avataaars', 'personas', 'lorelei', 'notionists', 'open-peeps']
+
+  const style = pickRandom(styles)
+  // Use username as seed for consistency (same user always gets same avatar)
+  const seed = encodeURIComponent(username)
+  return `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50`
+}
+
+/**
  * POST /api/bots/seed
  * body: { count?: number }
  *
@@ -60,6 +84,7 @@ export async function POST(req: NextRequest) {
             name,
             bio: generateEgyptianBio(),
             avatarColor: generateAvatarColor(),
+            avatarUrl: generateAvatarUrl(username, gender),
             passwordHash: null, // Bots can't login
             emailVerified: true,
             onboarded: true,

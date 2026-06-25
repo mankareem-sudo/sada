@@ -6,6 +6,7 @@ import {
   pickRandom,
   EGYPTIAN_REACTIONS,
 } from '@/lib/egyptian-bots'
+import { generateSmartComment, generateSmartReply } from '@/lib/smart-bot-comments'
 
 /**
  * POST /api/bots/activate
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
     let likesGiven = 0
     let commentsCreated = 0
     let voiceLikesGiven = 0
+    let aiComments = 0
     let errors = 0
 
     for (let i = 0; i < maxActions; i++) {
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
             }
           }
         } else if (action < 0.9) {
-          // 20%: Comment on a post
+          // 20%: Comment on a post (SMART - relevant to content)
           const posts = await db.post.findMany({
             where: { isPublished: true },
             take: 50,
@@ -111,8 +113,10 @@ export async function POST(req: NextRequest) {
           if ((posts as any[]).length > 0) {
             const post = pickRandom(posts as any[])
             // Don't comment on own post
-            if (post.userId !== bot.id) {
-              const comment = generateEgyptianComment()
+            if (post.userId !== bot.id && post.content) {
+              // Generate smart contextual comment using AI
+              const { comment, usedAI } = await generateSmartComment(post.content, bot.name)
+
               await db.postComment.create({
                 data: {
                   id: generateId(),
@@ -123,6 +127,7 @@ export async function POST(req: NextRequest) {
                 },
               })
               commentsCreated++
+              if (usedAI) aiComments++
 
               // Send notification to post owner
               await db.notification.create({
@@ -136,6 +141,26 @@ export async function POST(req: NextRequest) {
                   createdAt: new Date().toISOString(),
                 },
               }).catch(() => {})
+
+              // 30% chance: another bot replies to this comment (thread)
+              if (Math.random() < 0.3) {
+                const otherBots = (botUsers as any[]).filter((b: any) => b.id !== bot.id)
+                if (otherBots.length > 0) {
+                  const replyBot = pickRandom(otherBots)
+                  const { reply, usedAI: replyAI } = await generateSmartReply(post.content, comment, replyBot.name)
+                  await db.postComment.create({
+                    data: {
+                      id: generateId(),
+                      postId: post.id,
+                      userId: replyBot.id,
+                      content: reply,
+                      parentId: undefined, // Would need to fetch the comment ID first
+                      createdAt: new Date().toISOString(),
+                    },
+                  }).catch(() => {})
+                  if (replyAI) aiComments++
+                }
+              }
             }
           }
         } else {
@@ -192,6 +217,7 @@ export async function POST(req: NextRequest) {
       likesGiven,
       commentsCreated,
       voiceLikesGiven,
+      aiComments,
       errors,
       totalBots: (botUsers as any[]).length,
     })
