@@ -27,6 +27,14 @@ export function CommentsSection({
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState('')
   const user = useSada((s) => s.user)
+  const setViewedUsername = useSada((s) => s.setViewedUsername)
+  const setTab = useSada((s) => s.setTab)
+
+  const openProfile = (username: string) => {
+    if (!username) return
+    setViewedUsername(username)
+    setTab('profile')
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -199,6 +207,7 @@ export function CommentsSection({
                   <CommentItem
                     comment={c}
                     user={user}
+                    onOpenProfile={openProfile}
                     onReply={(id) => {
                       setReplyingTo(id === replyingTo ? null : id)
                       setReplyContent('')
@@ -223,6 +232,7 @@ export function CommentsSection({
 function CommentItem({
   comment,
   user,
+  onOpenProfile,
   onReply,
   onDelete,
   replyingTo,
@@ -233,6 +243,7 @@ function CommentItem({
 }: {
   comment: SadaComment
   user: any
+  onOpenProfile: (username: string) => void
   onReply: (id: string) => void
   onDelete: (id: string) => void
   replyingTo: string | null
@@ -243,15 +254,26 @@ function CommentItem({
 }) {
   return (
     <div className="flex gap-2 items-start">
-      <Avatar
-        name={comment.user.name}
-        color={comment.user.avatarColor}
-        size="sm"
-      />
+      <button
+        onClick={() => onOpenProfile(comment.user.username)}
+        className="shrink-0"
+        title={comment.user.name}
+      >
+        <Avatar
+          name={comment.user.name}
+          color={comment.user.avatarColor}
+          size="sm"
+        />
+      </button>
       <div className="flex-1 min-w-0">
         <div className="bg-muted/40 rounded-2xl px-3 py-2">
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="font-medium text-sm">{comment.user.name}</span>
+            <button
+              onClick={() => onOpenProfile(comment.user.username)}
+              className="font-medium text-sm hover:underline"
+            >
+              {comment.user.name}
+            </button>
             <span className="text-[10px] text-muted-foreground">
               {timeAgo(comment.createdAt)}
             </span>
@@ -312,15 +334,26 @@ function CommentItem({
           <div className="mt-2 space-y-2 mr-4 border-r border-border/40 pr-2">
             {comment.replies.map((r) => (
               <div key={r.id} className="flex gap-2 items-start">
-                <Avatar
-                  name={r.user.name}
-                  color={r.user.avatarColor}
-                  size="sm"
-                />
+                <button
+                  onClick={() => onOpenProfile(r.user.username)}
+                  className="shrink-0"
+                  title={r.user.name}
+                >
+                  <Avatar
+                    name={r.user.name}
+                    color={r.user.avatarColor}
+                    size="sm"
+                  />
+                </button>
                 <div className="flex-1 min-w-0">
                   <div className="bg-muted/30 rounded-2xl px-3 py-2">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-medium text-sm">{r.user.name}</span>
+                      <button
+                        onClick={() => onOpenProfile(r.user.username)}
+                        className="font-medium text-sm hover:underline"
+                      >
+                        {r.user.name}
+                      </button>
                       <span className="text-[10px] text-muted-foreground">
                         {timeAgo(r.createdAt)}
                       </span>

@@ -506,11 +506,22 @@ export function PostCard({
                     <div className="space-y-3 max-h-80 overflow-y-auto">
                       {comments.map((c) => (
                         <div key={c.id} className="flex gap-2 items-start">
-                          <Avatar name={c.user?.name || '?'} color={c.user?.avatarColor || '#888'} imageUrl={c.user?.avatarUrl} size="sm" />
+                          <button
+                            onClick={() => c.user?.username && onOpenProfile(c.user.username)}
+                            className="shrink-0"
+                            title={c.user?.name}
+                          >
+                            <Avatar name={c.user?.name || '?'} color={c.user?.avatarColor || '#888'} imageUrl={c.user?.avatarUrl} size="sm" />
+                          </button>
                           <div className="flex-1 min-w-0">
                             <div className="bg-muted/40 rounded-2xl px-3 py-2">
                               <div className="flex items-center gap-2 mb-0.5">
-                                <span className="font-medium text-sm">{c.user?.name}</span>
+                                <button
+                                  onClick={() => c.user?.username && onOpenProfile(c.user.username)}
+                                  className="font-medium text-sm hover:underline"
+                                >
+                                  {c.user?.name}
+                                </button>
                                 <span className="text-[10px] text-muted-foreground">{timeAgo(c.createdAt)}</span>
                               </div>
                               {c.content && <p className="text-sm whitespace-pre-wrap">{c.content}</p>}

@@ -224,12 +224,12 @@
   animation: sada-fade-up 0.35s ease-out both;
 }
 
-/* Glass card effect */
+/* Glass card effect — adapts to theme */
 .sada-glass {
-  background: oklch(0.17 0.02 285 / 0.7);
+  background: color-mix(in oklch, var(--card) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid oklch(0.3 0.02 285 / 0.5);
+  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
 }
 
 /* Hide scrollbar utility */
