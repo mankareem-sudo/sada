@@ -38,11 +38,14 @@ export interface SadaVoiceNote {
     name: string
     avatarColor: string
     avatarUrl?: string | null
+    isVerified?: boolean
   }
   likedByMe?: boolean
   bookmarkedByMe?: boolean
   likesCount?: number
   commentsCount?: number
+  replyToId?: string | null
+  replies?: SadaVoiceNote[] // voice replies (duets)
 }
 
 export interface SadaComment {

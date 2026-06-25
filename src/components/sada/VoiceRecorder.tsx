@@ -16,8 +16,8 @@ interface VoiceRecorderProps {
   promptId?: string | null
   promptDate?: string
   promptText?: string
-  /** 'voice-note' (default) = regular voice note, 'story' = 24h voice story */
-  mode?: 'voice-note' | 'story'
+  /** 'voice-note' (default) = regular voice note, 'story' = 24h voice story, 'duet' = voice reply */
+  mode?: 'voice-note' | 'story' | 'duet'
 }
 
 type Phase = 'idle' | 'recording' | 'reviewing' | 'uploading'
@@ -201,17 +201,33 @@ export function VoiceRecorder({
     if (!audioData) return
     setPhase('uploading')
     try {
-      const endpoint = mode === 'story' ? '/api/stories/create' : '/api/voice-notes/create'
+      let endpoint = '/api/voice-notes/create'
       const payload: any = {
         audioData,
         mimeType,
         durationSec: elapsed,
       }
-      if (mode === 'voice-note') {
+
+      if (mode === 'story') {
+        endpoint = '/api/stories/create'
+      } else if (mode === 'duet') {
+        endpoint = '/api/voice-notes/reply'
+        // Get parent voice note ID from sessionStorage
+        const parentVoiceNoteId = sessionStorage.getItem('sada-duet-parent')
+        if (!parentVoiceNoteId) {
+          toast.error('فيه مشكلة — ما قدرناش نحدد الصدى الأصلي')
+          setPhase('reviewing')
+          return
+        }
+        payload.parentVoiceNoteId = parentVoiceNoteId
+        payload.description = description.trim() || undefined
+      } else {
+        // voice-note (default)
         payload.promptId = promptId || undefined
         payload.promptDate = promptDate || undefined
         payload.description = description.trim() || undefined
       }
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -223,7 +239,17 @@ export function VoiceRecorder({
         setPhase('reviewing')
         return
       }
-      toast.success(mode === 'story' ? 'تم نشر ستوريك 🎙️' : 'تم نشر صدى صوتك 🎙️')
+
+      // Clear duet parent on success
+      if (mode === 'duet') {
+        sessionStorage.removeItem('sada-duet-parent')
+      }
+
+      const successMsg =
+        mode === 'story' ? 'تم نشر ستوريك 🎙️' :
+        mode === 'duet' ? 'تم نشر ردك الصوتي 🎙️' :
+        'تم نشر صدى صوتك 🎙️'
+      toast.success(successMsg)
       setDescription('')
       onSubmitted()
       onClose()
@@ -242,7 +268,13 @@ export function VoiceRecorder({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold font-cairo">
-            {phase === 'reviewing' ? 'راجع تسجيلك' : 'سجّل صدى صوتك'}
+            {phase === 'reviewing'
+              ? 'راجع تسجيلك'
+              : mode === 'story'
+                ? 'سجّل ستوري صوتي'
+                : mode === 'duet'
+                  ? 'سجّل رد صوتي (Duet)'
+                  : 'سجّل صدى صوتك'}
           </h2>
           <button
             onClick={onClose}
@@ -253,7 +285,21 @@ export function VoiceRecorder({
           </button>
         </div>
 
-        {promptText && (
+        {/* Mode indicator for stories/duets */}
+        {mode === 'story' && (
+          <div className="mb-4 p-2.5 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent-foreground/90 flex items-center gap-2">
+            <span className="text-base">📸</span>
+            <span>ستوري صوتي — تختفي تلقائياً بعد 24 ساعة</span>
+          </div>
+        )}
+        {mode === 'duet' && (
+          <div className="mb-4 p-2.5 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent-foreground/90 flex items-center gap-2">
+            <span className="text-base">🎙️</span>
+            <span>رد صوتي — ردك هيظهر تحت الصدى الأصلي</span>
+          </div>
+        )}
+
+        {promptText && mode === 'voice-note' && (
           <div className="mb-4 p-3 rounded-xl bg-primary/10 border border-primary/20 text-sm text-primary-foreground/90">
             <div className="text-xs text-muted-foreground mb-1">السؤال:</div>
             <div className="font-medium">{promptText}</div>

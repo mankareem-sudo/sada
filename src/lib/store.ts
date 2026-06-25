@@ -24,9 +24,9 @@ interface SadaState {
   // Recorder modal
   recorderOpen: boolean
   setRecorderOpen: (v: boolean) => void
-  recorderMode: 'voice-note' | 'story'
-  setRecorderMode: (m: 'voice-note' | 'story') => void
-  openRecorder: (mode?: 'voice-note' | 'story') => void
+  recorderMode: 'voice-note' | 'story' | 'duet'
+  setRecorderMode: (m: 'voice-note' | 'story' | 'duet') => void
+  openRecorder: (mode?: 'voice-note' | 'story' | 'duet') => void
 
   // Profile viewing: username or null = my profile
   viewedUsername: string | null
@@ -82,9 +82,9 @@ export const useSada = create<SadaState>((set) => ({
 
   recorderOpen: false,
   setRecorderOpen: (v) => set({ recorderOpen: v }),
-  recorderMode: 'voice-note' as 'voice-note' | 'story',
+  recorderMode: 'voice-note' as 'voice-note' | 'story' | 'duet',
   setRecorderMode: (m) => set({ recorderMode: m }),
-  openRecorder: (mode = 'voice-note' as 'voice-note' | 'story') =>
+  openRecorder: (mode = 'voice-note' as 'voice-note' | 'story' | 'duet') =>
     set({ recorderOpen: true, recorderMode: mode }),
 
   viewedUsername: null,

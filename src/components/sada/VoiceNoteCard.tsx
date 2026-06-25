@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +12,9 @@ import {
   Share2,
   FileText,
   Loader2,
+  Mic2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
@@ -44,12 +47,15 @@ interface VoiceNoteCardProps {
   note: SadaVoiceNote
   showAuthor?: boolean
   onOpenProfile?: (username: string) => void
+  /** Hide duet button (e.g., for replies themselves to avoid infinite nesting) */
+  hideDuet?: boolean
 }
 
 export function VoiceNoteCard({
   note,
   showAuthor = true,
   onOpenProfile,
+  hideDuet = false,
 }: VoiceNoteCardProps) {
   const [liked, setLiked] = useState(note.likedByMe ?? false)
   const [likesCount, setLikesCount] = useState(note.likesCount ?? 0)
@@ -58,7 +64,12 @@ export function VoiceNoteCard({
   const [transcribing, setTranscribing] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [moreMenu, setMoreMenu] = useState(false)
+  const [voiceReplies, setVoiceReplies] = useState<SadaVoiceNote[]>([])
+  const [showVoiceReplies, setShowVoiceReplies] = useState(false)
+  const [loadingReplies, setLoadingReplies] = useState(false)
+  const [repliesCount, setRepliesCount] = useState<number | null>(null)
   const user = useSada((s) => s.user)
+  const openRecorder = useSada((s) => s.openRecorder)
 
   const toggleLike = async () => {
     if (!user) {
@@ -167,6 +178,70 @@ export function VoiceNoteCard({
       // ignore
     }
   }
+
+  // === Voice Replies (Duet) ===
+  const loadVoiceReplies = async () => {
+    if (loadingReplies) return
+    setLoadingReplies(true)
+    try {
+      const res = await fetch(`/api/voice-notes/replies?voiceNoteId=${note.id}`)
+      const data = await res.json()
+      setVoiceReplies(data.replies || [])
+      setRepliesCount((data.replies || []).length)
+    } catch {
+      toast.error('فشل تحميل الردود الصوتية')
+    } finally {
+      setLoadingReplies(false)
+    }
+  }
+
+  const toggleVoiceReplies = () => {
+    if (!showVoiceReplies && voiceReplies.length === 0) {
+      loadVoiceReplies()
+    }
+    setShowVoiceReplies(!showVoiceReplies)
+  }
+
+  const handleDuet = () => {
+    if (!user) {
+      toast.error('سجّل دخول الأول عشان ترد بصوت')
+      return
+    }
+    // Store the parent voice note ID so the recorder knows where to attach the reply
+    try {
+      sessionStorage.setItem('sada-duet-parent', note.id)
+    } catch {}
+    openRecorder('duet' as any)
+  }
+
+  // Listen for new duet (when recorder closes after submitting a duet)
+  // — refresh replies if visible
+  useEffect(() => {
+    if (!showVoiceReplies) return
+    const interval = setInterval(() => {
+      const duetParent = sessionStorage.getItem('sada-duet-parent')
+      // If duet parent was cleared (i.e., duet was submitted), refresh
+      if (!duetParent && voiceReplies.length >= 0) {
+        // Refresh once per second at most
+      }
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [showVoiceReplies, voiceReplies.length])
+
+  // Refresh replies when user returns to the card after recording a duet
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && showVoiceReplies) {
+        const duetParent = sessionStorage.getItem('sada-duet-parent')
+        if (!duetParent) {
+          // Duet was submitted, refresh
+          loadVoiceReplies()
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [showVoiceReplies])
 
   return (
     <Card className="p-4 sada-glass sada-fade-up border-border/50 rounded-2xl">
@@ -298,6 +373,18 @@ export function VoiceNoteCard({
             <span className="tabular-nums">{formatCount(likesCount)}</span>
           </button>
 
+          {/* Duet (voice reply) button — only on original voice notes, not on replies */}
+          {!hideDuet && (
+            <button
+              onClick={handleDuet}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent transition"
+              aria-label="رد صوتي (Duet)"
+              title="رد بصوت على هذا الصدى"
+            >
+              <Mic2 className="h-4 w-4" />
+            </button>
+          )}
+
           <button
             onClick={toggleSave}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
@@ -327,6 +414,101 @@ export function VoiceNoteCard({
         voiceNoteId={note.id}
         initialCount={note.commentsCount ?? 0}
       />
+
+      {/* Voice Replies (Duet) — toggle + list */}
+      {!hideDuet && (
+        <div className="mt-3">
+          <button
+            onClick={toggleVoiceReplies}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent transition"
+          >
+            {showVoiceReplies ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
+            <Mic2 className="h-3.5 w-3.5" />
+            <span>
+              {loadingReplies
+                ? 'جاري التحميل...'
+                : showVoiceReplies
+                  ? 'إخفاء الردود الصوتية'
+                  : repliesCount !== null
+                    ? `عرض الردود الصوتية (${repliesCount})`
+                    : 'عرض الردود الصوتية'}
+            </span>
+          </button>
+
+          {showVoiceReplies && (
+            <div className="mt-3 space-y-2 pl-3 border-l-2 border-accent/20">
+              {loadingReplies ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : voiceReplies.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">
+                  مفيش ردود صوتية لسه — كن أول واحد يرد بصوت 🎙️
+                </p>
+              ) : (
+                voiceReplies.map((reply) => (
+                  <div key={reply.id} className="rounded-xl bg-muted/20 p-2.5">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {reply.user && (
+                        <Avatar
+                          name={reply.user.name}
+                          color={reply.user.avatarColor}
+                          imageUrl={reply.user.avatarUrl}
+                          size="sm"
+                          isVerified={reply.user.isVerified}
+                        />
+                      )}
+                      <div className="text-right flex-1 min-w-0">
+                        <div className="text-xs font-medium truncate">
+                          {reply.user?.name || 'مستخدم'}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {timeAgo(reply.createdAt)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleDuet}
+                        className="text-[10px] text-muted-foreground hover:text-accent transition"
+                        title="رد على هذا الصدى"
+                      >
+                        <Mic2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                    {reply.description && (
+                      <p className="text-xs text-muted-foreground mb-1.5">
+                        {reply.description}
+                      </p>
+                    )}
+                    <VoicePlayer
+                      src={reply.audioData}
+                      durationSec={reply.durationSec}
+                      accent="accent"
+                      title={reply.description || 'رد صوتي'}
+                      artist={reply.user?.name}
+                      album="رد صوتي على صدى"
+                      artworkUrl={reply.user?.avatarUrl || undefined}
+                    />
+                    <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Heart className={`h-3 w-3 ${reply.likedByMe ? 'fill-primary text-primary' : ''}`} />
+                        {formatCount(reply.likesCount || 0)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Play className="h-3 w-3" />
+                        {formatCount(reply.plays)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <ReportDialog
         open={reportOpen}
