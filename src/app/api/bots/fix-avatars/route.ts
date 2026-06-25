@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Find all bot users (emails ending with @sada-bots.local)
+    // Find bot users missing avatars (limit to 30 per call to avoid timeout)
     const bots = await db.user.findMany({
       where: {
         email: { contains: '@sada-bots.local' },
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
           { avatarUrl: '' },
         ],
       },
-      take: 200,
+      take: 30,
     })
 
     let updated = 0
