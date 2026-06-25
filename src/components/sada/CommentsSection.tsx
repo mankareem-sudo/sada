@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar } from './Avatar'
-import { Trash2, Send, MessageCircle, Loader2, CornerDownRight } from 'lucide-react'
+import { Trash2, Send, MessageCircle, Loader2, CornerDownRight, Heart } from 'lucide-react'
 import { timeAgo } from '@/lib/format'
 import { useSada } from '@/lib/store'
 import { toast } from 'sonner'
@@ -262,13 +262,53 @@ function CommentItem({
         </div>
         <div className="flex items-center gap-3 mt-1">
           {user && (
-            <button
-              onClick={() => onReply(comment.id)}
-              className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
-            >
-              <CornerDownRight className="h-3 w-3" />
-              رد
-            </button>
+            <>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/comments/like', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ commentId: comment.id }),
+                    })
+                    const data = await res.json()
+                    if (res.ok) {
+                      // Update local state
+                      setComments((prev) =>
+                        prev.map((c) =>
+                          c.id === comment.id
+                            ? {
+                                ...c,
+                                likedByMe: data.liked,
+                                likesCount: data.likesCount,
+                              } as any
+                            : c
+                        )
+                      )
+                    }
+                  } catch {}
+                }}
+                className={`text-[11px] flex items-center gap-1 transition ${
+                  (comment as any).likedByMe
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-primary'
+                }`}
+              >
+                <Heart
+                  className={`h-3 w-3 ${(comment as any).likedByMe ? 'fill-primary' : ''}`}
+                />
+                {(comment as any).likesCount > 0 && (
+                  <span className="tabular-nums">{(comment as any).likesCount}</span>
+                )}
+              </button>
+              <button
+                onClick={() => onReply(comment.id)}
+                className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+              >
+                <CornerDownRight className="h-3 w-3" />
+                رد
+              </button>
+            </>
           )}
           {user?.id === comment.user.id && (
             <button
@@ -303,6 +343,49 @@ function CommentItem({
                       {r.content}
                     </p>
                   </div>
+                  {user && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/comments/like', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ commentId: r.id }),
+                          })
+                          const data = await res.json()
+                          if (res.ok) {
+                            // Update reply in local state
+                            setComments((prev) =>
+                              prev.map((c) => ({
+                                ...c,
+                                replies: (c.replies || []).map((reply) =>
+                                  reply.id === r.id
+                                    ? {
+                                        ...reply,
+                                        likedByMe: data.liked,
+                                        likesCount: data.likesCount,
+                                      } as any
+                                    : reply
+                                ),
+                              }))
+                            )
+                          }
+                        } catch {}
+                      }}
+                      className={`text-[11px] flex items-center gap-1 transition mt-1 ${
+                        (r as any).likedByMe
+                          ? 'text-primary'
+                          : 'text-muted-foreground hover:text-primary'
+                      }`}
+                    >
+                      <Heart
+                        className={`h-3 w-3 ${(r as any).likedByMe ? 'fill-primary' : ''}`}
+                      />
+                      {(r as any).likesCount > 0 && (
+                        <span className="tabular-nums">{(r as any).likesCount}</span>
+                      )}
+                    </button>
+                  )}
                   {user?.id === r.user.id && (
                     <button
                       onClick={() => onDelete(r.id)}

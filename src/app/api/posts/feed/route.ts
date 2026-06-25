@@ -43,12 +43,17 @@ export async function GET(req: NextRequest) {
   const scope = url.searchParams.get('scope') || 'all' // 'all' or 'following'
 
   let targetUserIds: string[] | undefined
-  if (scope === 'following' && user) {
+  let followingIdsSet = new Set<string>()
+  if (user) {
+    // Always fetch following for ranking
     const follows = await db.follow.findMany({
       where: { followerId: user.id },
       select: { followeeId: true },
     })
-    targetUserIds = [user.id, ...follows.map((f: any) => f.followeeId)]
+    followingIdsSet = new Set((follows as any[]).map((f: any) => f.followeeId))
+    if (scope === 'following') {
+      targetUserIds = [user.id, ...Array.from(followingIdsSet)]
+    }
   }
 
   // Build privacy-aware where clause
@@ -56,23 +61,22 @@ export async function GET(req: NextRequest) {
   // - Friends can see public + friends-only posts from others
   // - Non-friends can only see public posts
   let privacyWhere: any
+  let friendIdsSet = new Set<string>()
 
   if (user) {
-    // Get user's friends list
-    const friendships = await db.friendship.findMany({
-      where: {
-        OR: [
-          { requesterId: user.id, status: 'accepted' },
-          { addresseeId: user.id, status: 'accepted' },
-        ],
-      },
-      select: { requesterId: true, addresseeId: true },
+    // Get user's friends list — query both directions (Supabase doesn't support OR well)
+    const friendsAsRequester = await db.friendship.findMany({
+      where: { requesterId: user.id, status: 'accepted' },
+      select: { addresseeId: true },
     })
-    const friendIds = new Set<string>()
-    for (const f of friendships as any[]) {
-      if (f.requesterId === user.id) friendIds.add(f.addresseeId)
-      else friendIds.add(f.requesterId)
-    }
+    const friendsAsAddressee = await db.friendship.findMany({
+      where: { addresseeId: user.id, status: 'accepted' },
+      select: { requesterId: true },
+    })
+    friendIdsSet = new Set([
+      ...(friendsAsRequester as any[]).map((f: any) => f.addresseeId),
+      ...(friendsAsAddressee as any[]).map((f: any) => f.requesterId),
+    ])
 
     privacyWhere = {
       OR: [
@@ -81,7 +85,7 @@ export async function GET(req: NextRequest) {
         // Public posts from others
         { privacy: 'public', userId: { ne: user.id } },
         // Friends-only posts from friends
-        { privacy: 'friends', userId: { in: Array.from(friendIds) } },
+        { privacy: 'friends', userId: { in: Array.from(friendIdsSet) } },
       ],
     }
   } else {
@@ -151,8 +155,69 @@ export async function GET(req: NextRequest) {
     },
   }))
 
-  const hasMore = enrichedPosts.length > limit
-  const slice = hasMore ? enrichedPosts.slice(0, limit) : enrichedPosts
+  // === Smart Feed Ranking (6-criteria algorithm from strategy doc) ===
+  // 1. Relevance (1): Is the post author followed by the user? (highest weight)
+  // 2. Interaction depth (2): Total likes + comments (engagement)
+  // 3. Acoustic quality (3): N/A for text posts — voice notes get slight boost
+  // 4. Recency (4): Newer posts score higher
+  // 5. Badges (5): Verified users get a small boost
+  // 6. Non-spam (6): Posts with extreme repetition or patterns get demoted
+  const now = Date.now()
+  const rankedPosts = enrichedPosts.map((p: any) => {
+    let score = 0
+
+    // 1. Relevance — author is followed by current user
+    if (user && followingIdsSet.has(p.userId)) {
+      score += 40
+    }
+    // Author is a friend — even higher boost
+    if (user && friendIdsSet.has(p.userId)) {
+      score += 30
+    }
+
+    // 2. Interaction depth — likes + comments (logarithmic to prevent viral dominance)
+    const engagement = (p._count.likes || 0) + (p._count.comments || 0) * 2
+    score += Math.min(Math.log10(engagement + 1) * 15, 30)
+
+    // 3. Acoustic quality — voice posts get a small boost
+    if (p.type === 'voice' || p.voiceNoteId) {
+      score += 10
+    }
+
+    // 4. Recency — posts lose ~1 point per hour, max -20 after 20h
+    const ageHours = (now - new Date(p.createdAt).getTime()) / (1000 * 60 * 60)
+    score -= Math.min(ageHours, 20)
+
+    // 5. Badges — verified authors get +5
+    if (p.user?.isVerified) {
+      score += 5
+    }
+
+    // 6. Non-spam — demote posts with excessive repetition
+    const content = p.content || ''
+    if (content) {
+      // Check for excessive character repetition
+      const hasRepetition = /(.)\1{5,}/.test(content)
+      if (hasRepetition) score -= 10
+      // Check for excessive caps
+      const capsRatio = (content.match(/[A-Z\u0600-\u06FF]/g) || []).length / content.length
+      if (capsRatio > 0.7 && content.length > 30) score -= 5
+    }
+
+    return { ...p, _rankScore: score }
+  })
+
+  // Sort by rank score (desc), then by recency as tiebreaker
+  rankedPosts.sort((a: any, b: any) => {
+    if (b._rankScore !== a._rankScore) return b._rankScore - a._rankScore
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+
+  // Remove the _rankScore from the final output
+  const finalPosts = rankedPosts.map(({ _rankScore, ...p }: any) => p)
+
+  const hasMore = finalPosts.length > limit
+  const slice = hasMore ? finalPosts.slice(0, limit) : finalPosts
   const nextCursor = hasMore ? slice[slice.length - 1]?.id : null
 
   return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, generateId } from '@/lib/db'
 import { getCurrentUser, sanitizeText, detectXSS, validateAudioData } from '@/lib/auth'
+import { moderateText } from '@/lib/moderation'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
@@ -97,6 +98,19 @@ export async function POST(req: NextRequest) {
   if (content) {
     const clean = sanitizeText(content, 500)
     if (detectXSS(clean)) return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
+
+    // AI Moderation
+    const moderation = moderateText(clean)
+    if (moderation.action === 'block') {
+      return NextResponse.json(
+        {
+          error: 'تعليقك مخالف لسياسة المنصة',
+          reasons: moderation.reasons,
+        },
+        { status: 422 }
+      )
+    }
+
     data.content = clean
   }
 

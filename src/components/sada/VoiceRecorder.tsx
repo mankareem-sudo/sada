@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Mic, Square, Trash2, Send, X } from 'lucide-react'
+import { Mic, Square, Trash2, Send, X, Save, FileAudio } from 'lucide-react'
 import { formatDuration } from '@/lib/format'
 import { toast } from 'sonner'
 
@@ -213,7 +213,6 @@ export function VoiceRecorder({
         endpoint = '/api/stories/create'
       } else if (mode === 'duet') {
         endpoint = '/api/voice-notes/reply'
-        // Get parent voice note ID from sessionStorage
         const parentVoiceNoteId = sessionStorage.getItem('sada-duet-parent')
         if (!parentVoiceNoteId) {
           toast.error('فيه مشكلة — ما قدرناش نحدد الصدى الأصلي')
@@ -224,14 +223,12 @@ export function VoiceRecorder({
         payload.description = description.trim() || undefined
       } else if (mode === 'voice-bio') {
         endpoint = '/api/profile/voice-bio'
-        // Voice bio: max 30 seconds
         if (elapsed > MAX_DURATION_VOICE_BIO) {
           toast.error(`التعريف الصوتي لازم يكون أقل من ${MAX_DURATION_VOICE_BIO} ثانية`)
           setPhase('reviewing')
           return
         }
       } else {
-        // voice-note (default)
         payload.promptId = promptId || undefined
         payload.promptDate = promptDate || undefined
         payload.description = description.trim() || undefined
@@ -249,7 +246,6 @@ export function VoiceRecorder({
         return
       }
 
-      // Clear duet parent on success
       if (mode === 'duet') {
         sessionStorage.removeItem('sada-duet-parent')
       }
@@ -266,6 +262,38 @@ export function VoiceRecorder({
     } catch (e) {
       console.error('Submit error', e)
       toast.error('فشل رفع التسجيل. حاول مرة تانية')
+      setPhase('reviewing')
+    }
+  }
+
+  // Save current recording as a draft
+  const saveAsDraft = async () => {
+    if (!audioData) return
+    setPhase('uploading')
+    try {
+      const res = await fetch('/api/voice-drafts/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audioData,
+          mimeType,
+          durationSec: elapsed,
+          description: description.trim() || undefined,
+          promptId: promptId || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'فشل حفظ المسودة')
+        setPhase('reviewing')
+        return
+      }
+      toast.success('تم حفظ التسجيل كمسودة 💾')
+      setDescription('')
+      onClose()
+    } catch (e) {
+      console.error('Save draft error', e)
+      toast.error('فشل حفظ المسودة')
       setPhase('reviewing')
     }
   }
@@ -399,15 +427,14 @@ export function VoiceRecorder({
               </div>
             </div>
 
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-2 w-full">
               <Button
                 onClick={discardRecording}
                 variant="outline"
-                className="flex-1 gap-2"
+                className="gap-2"
                 disabled={phase !== 'reviewing'}
               >
                 <Trash2 className="h-4 w-4" />
-                إعادة التسجيل
               </Button>
               <Button
                 onClick={submitRecording}
@@ -417,6 +444,18 @@ export function VoiceRecorder({
                 <Send className="h-4 w-4" />
                 نشر
               </Button>
+              {/* Save as draft — only for regular voice notes */}
+              {mode === 'voice-note' && (
+                <Button
+                  onClick={saveAsDraft}
+                  variant="outline"
+                  className="gap-2"
+                  disabled={phase !== 'reviewing'}
+                  title="حفظ كمسودة"
+                >
+                  <Save className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         )}

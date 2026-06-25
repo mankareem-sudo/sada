@@ -3,6 +3,7 @@ import { db, generateId } from '@/lib/db'
 import { getCurrentUser, sanitizeText, detectXSS, validateAudioData } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { uploadPostImage } from '@/lib/storage'
+import { moderateText } from '@/lib/moderation'
 
 /**
  * POST /api/posts/create
@@ -62,7 +63,27 @@ export async function POST(req: NextRequest) {
     if (detectXSS(cleanContent)) {
       return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
     }
+
+    // AI Moderation — block toxic content
+    const moderation = moderateText(cleanContent)
+    if (moderation.action === 'block') {
+      return NextResponse.json(
+        {
+          error: 'محتواك مخالف لسياسة المنصة',
+          reasons: moderation.reasons,
+          score: moderation.score,
+        },
+        { status: 422 }
+      )
+    }
+
     data.content = cleanContent
+
+    // Flag for admin review if score is high
+    if (moderation.action === 'flag') {
+      // We'll store the flag in a notification for admins
+      // (simplified — could add a 'flagged' field to Post)
+    }
   }
 
   // Image — upload to Storage

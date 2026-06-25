@@ -418,6 +418,9 @@ export function SettingsModal({
 
             {/* Other actions */}
             <div className="border-t border-border pt-3 space-y-2">
+              {/* Mute Words */}
+              <MuteWordsSection />
+
               <Button
                 variant="outline"
                 onClick={() => {

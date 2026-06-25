@@ -6,6 +6,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 /**
  * GET /api/voice-notes/comments?voiceNoteId=xxx
  * Returns comments for a voice note, including their replies (one level deep).
+ * Now includes like counts + likedByMe for each comment.
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
@@ -13,49 +14,88 @@ export async function GET(req: NextRequest) {
   if (!voiceNoteId) {
     return NextResponse.json({ error: 'missing id' }, { status: 400 })
   }
-  // Fetch top-level comments only (parentId is null)
+
+  const currentUser = await getCurrentUser()
+
+  // Fetch top-level comments (parentId is null) — Supabase-compatible
   const comments = await db.comment.findMany({
     where: { voiceNoteId, parentId: null },
     orderBy: { createdAt: 'asc' },
-    include: {
-      user: {
+    take: 100,
+  })
+
+  if (comments.length === 0) {
+    return NextResponse.json({ comments: [] })
+  }
+
+  // Fetch replies for all top-level comments
+  const commentIds = (comments as any[]).map((c: any) => c.id)
+  const replies = await db.comment.findMany({
+    where: { parentId: { in: commentIds } },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  // Fetch all user info for comments + replies
+  const allComments = [...(comments as any[]), ...(replies as any[])]
+  const userIds = [...new Set(allComments.map((c: any) => c.userId))]
+  const users = userIds.length > 0
+    ? await db.user.findMany({
+        where: { id: { in: userIds } },
         select: {
           id: true,
           username: true,
           name: true,
           avatarColor: true,
+          avatarUrl: true,
+          isVerified: true,
         },
-      },
-      replies: {
-        orderBy: { createdAt: 'asc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              name: true,
-              avatarColor: true,
-            },
-          },
-        },
-      },
-    },
-    take: 100,
+      })
+    : []
+  const userMap = new Map((users as any[]).map((u: any) => [u.id, u]))
+
+  // Fetch all comment likes for these comments
+  const allCommentIds = allComments.map((c: any) => c.id)
+  const allLikes = await db.commentLike.findMany({
+    where: { commentId: { in: allCommentIds } },
+    select: { commentId: true, userId: true },
   })
+  const likeCounts: Record<string, number> = {}
+  const myLikedCommentIds = new Set<string>()
+  for (const l of allLikes as any[]) {
+    likeCounts[l.commentId] = (likeCounts[l.commentId] || 0) + 1
+    if (currentUser && l.userId === currentUser.id) {
+      myLikedCommentIds.add(l.commentId)
+    }
+  }
+
+  // Group replies by parentId
+  const repliesByParent = new Map<string, any[]>()
+  for (const r of replies as any[]) {
+    const parent = r.parentId
+    if (!repliesByParent.has(parent)) {
+      repliesByParent.set(parent, [])
+    }
+    repliesByParent.get(parent)!.push({
+      id: r.id,
+      content: r.content,
+      createdAt: r.createdAt,
+      parentId: r.parentId,
+      user: userMap.get(r.userId) || null,
+      likesCount: likeCounts[r.id] || 0,
+      likedByMe: myLikedCommentIds.has(r.id),
+    })
+  }
+
   return NextResponse.json({
-    comments: comments.map((c) => ({
+    comments: (comments as any[]).map((c: any) => ({
       id: c.id,
       content: c.content,
       createdAt: c.createdAt,
       parentId: c.parentId,
-      user: c.user,
-      replies: c.replies.map((r) => ({
-        id: r.id,
-        content: r.content,
-        createdAt: r.createdAt,
-        parentId: r.parentId,
-        user: r.user,
-      })),
+      user: userMap.get(c.userId) || null,
+      likesCount: likeCounts[c.id] || 0,
+      likedByMe: myLikedCommentIds.has(c.id),
+      replies: repliesByParent.get(c.id) || [],
     })),
   })
 }
@@ -122,20 +162,24 @@ export async function POST(req: NextRequest) {
 
   const comment = await db.comment.create({
     data: {
+      id: undefined, // let DB generate
       userId: user.id,
       voiceNoteId,
       content: trimmed,
       parentId: parentId || null,
     },
-    include: {
-      user: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          avatarColor: true,
-        },
-      },
+  })
+
+  // Fetch user info for the comment
+  const commentUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      avatarColor: true,
+      avatarUrl: true,
+      isVerified: true,
     },
   })
 
@@ -149,25 +193,23 @@ export async function POST(req: NextRequest) {
   }
 
   if (notifTargets.size > 0) {
-    await Promise.all(
-      Array.from(notifTargets).map((recipientId) =>
-        db.notification
-          .create({
-            data: {
-              recipientId,
-              actorId: user.id,
-              type: parentId ? 'comment' : 'comment',
-              voiceNoteId,
-              commentId: comment.id,
-              text: parentId
-                ? `ردّ ${user.name} على تعليقك`
-                : `علّق ${user.name} على صداك`,
-              read: false,
-            },
-          })
-          .catch(() => {})
-      )
-    )
+    for (const recipientId of Array.from(notifTargets)) {
+      await db.notification.create({
+        data: {
+          id: undefined,
+          recipientId,
+          actorId: user.id,
+          type: 'comment',
+          voiceNoteId,
+          commentId: comment.id,
+          text: parentId
+            ? `ردّ ${user.name} على تعليقك`
+            : `علّق ${user.name} على صداك`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+      }).catch(() => {})
+    }
   }
 
   return NextResponse.json({
@@ -176,7 +218,9 @@ export async function POST(req: NextRequest) {
       content: comment.content,
       createdAt: comment.createdAt,
       parentId: comment.parentId,
-      user: comment.user,
+      user: commentUser,
+      likesCount: 0,
+      likedByMe: false,
       replies: [],
     },
   })
