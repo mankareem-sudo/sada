@@ -136,7 +136,7 @@ async function callModel(
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://my-project-one-lake-82.vercel.app',
-        'X-Title': 'Sada — Arabic Voice Platform',
+        'X-Title': 'Sada - Arabic Voice Platform',
       },
       body: JSON.stringify(body),
     })
