@@ -147,13 +147,25 @@ async function callModel(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '')
+      console.warn(`[OpenRouter] ${model} HTTP ${res.status}:`, errText.slice(0, 300))
       const error = new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`) as any
       error.status = res.status
       throw error
     }
 
-    const data = await res.json()
+    const resText = await res.text()
+    console.log(`[OpenRouter] ${model} response length:`, resText.length)
+    
+    let data: any
+    try {
+      data = JSON.parse(resText)
+    } catch (parseErr) {
+      console.warn(`[OpenRouter] ${model} JSON parse failed. Raw:`, resText.slice(0, 200))
+      throw new Error(`JSON parse error: ${resText.slice(0, 100)}`)
+    }
+    
     const content = data.choices?.[0]?.message?.content || ''
+    console.log(`[OpenRouter] ${model} content:`, content.slice(0, 100) || '(empty)')
 
     return {
       content,
