@@ -4,6 +4,7 @@ import { getCurrentUser, sanitizeText, detectXSS, validateAudioData } from '@/li
 import { checkRateLimit } from '@/lib/rate-limit'
 import { uploadPostImage } from '@/lib/storage'
 import { moderateText } from '@/lib/moderation'
+import { moderateWithAI, shouldAutoHide, shouldFlagForReview, shouldWarnUser } from '@/lib/ai-moderation'
 
 /**
  * POST /api/posts/create
@@ -64,14 +65,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
     }
 
-    // AI Moderation — block toxic content
-    const moderation = moderateText(cleanContent)
-    if (moderation.action === 'block') {
+    // AI Moderation — comprehensive check
+    const aiResult = await moderateWithAI(cleanContent)
+
+    if (aiResult.action === 'block' || shouldAutoHide(aiResult)) {
+      // Log the violation
+      await db.moderationLog.create({
+        data: {
+          id: generateId(),
+          contentType: 'post',
+          contentId: 'pending',
+          userId: user.id,
+          text: cleanContent.slice(0, 2000),
+          severity: aiResult.severity,
+          categories: aiResult.categories.join(','),
+          action: aiResult.action,
+          explanation: aiResult.explanation.slice(0, 500),
+          model: aiResult.model,
+          aiUsed: aiResult.aiUsed,
+          status: 'removed',
+          createdAt: new Date().toISOString(),
+        },
+      }).catch(() => {})
+
       return NextResponse.json(
         {
           error: 'محتواك مخالف لسياسة المنصة',
-          reasons: moderation.reasons,
-          score: moderation.score,
+          reasons: aiResult.categories,
+          explanation: aiResult.explanation,
+          severity: aiResult.severity,
         },
         { status: 422 }
       )
@@ -79,10 +101,21 @@ export async function POST(req: NextRequest) {
 
     data.content = cleanContent
 
-    // Flag for admin review if score is high
-    if (moderation.action === 'flag') {
-      // We'll store the flag in a notification for admins
-      // (simplified — could add a 'flagged' field to Post)
+    // If flagged, create a warning for the user
+    if (shouldWarnUser(aiResult) || shouldFlagForReview(aiResult)) {
+      await db.userWarning.create({
+        data: {
+          id: generateId(),
+          userId: user.id,
+          reason: `تحذير تلقائي: ${aiResult.explanation}`,
+          category: aiResult.categories[0] || 'policy_violation',
+          contentType: 'post',
+          contentId: 'pending',
+          severity: aiResult.severity,
+          isAcknowledged: false,
+          createdAt: new Date().toISOString(),
+        },
+      }).catch(() => {})
     }
   }
 

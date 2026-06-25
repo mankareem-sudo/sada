@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, generateId } from '@/lib/db'
 import { getCurrentUser, sanitizeText, detectXSS, validateAudioData } from '@/lib/auth'
 import { moderateText } from '@/lib/moderation'
+import { moderateWithAI, shouldAutoHide, shouldWarnUser } from '@/lib/ai-moderation'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
@@ -99,19 +100,38 @@ export async function POST(req: NextRequest) {
     const clean = sanitizeText(content, 500)
     if (detectXSS(clean)) return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
 
-    // AI Moderation
-    const moderation = moderateText(clean)
-    if (moderation.action === 'block') {
+    // AI Moderation — comprehensive check
+    const aiResult = await moderateWithAI(clean)
+    if (aiResult.action === 'block' || shouldAutoHide(aiResult)) {
       return NextResponse.json(
         {
           error: 'تعليقك مخالف لسياسة المنصة',
-          reasons: moderation.reasons,
+          reasons: aiResult.categories,
+          explanation: aiResult.explanation,
+          severity: aiResult.severity,
         },
         { status: 422 }
       )
     }
 
     data.content = clean
+
+    // Send warning if needed
+    if (shouldWarnUser(aiResult)) {
+      await db.userWarning.create({
+        data: {
+          id: generateId(),
+          userId: user.id,
+          reason: `تحذير تلقائي على تعليق: ${aiResult.explanation}`,
+          category: aiResult.categories[0] || 'policy_violation',
+          contentType: 'comment',
+          contentId: 'pending',
+          severity: aiResult.severity,
+          isAcknowledged: false,
+          createdAt: new Date().toISOString(),
+        },
+      }).catch(() => {})
+    }
   }
 
   if (imageUrl) {

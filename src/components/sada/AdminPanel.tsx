@@ -75,10 +75,14 @@ const REASON_LABELS: Record<string, string> = {
 }
 
 export function AdminPanel() {
-  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports'>('stats')
+  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation'>('stats')
   const [stats, setStats] = useState<Stats>(null)
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [reports, setReports] = useState<Report[]>([])
+  const [moderationQueue, setModerationQueue] = useState<any[]>([])
+  const [moderationFilter, setModerationFilter] = useState<'pending' | 'approved' | 'removed' | 'warned'>('pending')
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   // New prompt form
@@ -122,6 +126,56 @@ export function AdminPanel() {
     }
   }, [])
 
+  const loadModerationQueue = useCallback(async (status: 'pending' | 'approved' | 'removed' | 'warned' = 'pending') => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/moderation-queue?status=${status}&limit=30`)
+      const data = await res.json()
+      setModerationQueue(data.queue || [])
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const scanForViolations = async () => {
+    setScanning(true)
+    setScanResult(null)
+    try {
+      const res = await fetch('/api/moderation/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 20 }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setScanResult(data.message || `تم فحص ${data.scanned} عنصر`)
+        // Reload queue
+        loadModerationQueue(moderationFilter)
+      } else {
+        setScanResult(data.error || 'فشل الفحص')
+      }
+    } catch (e) {
+      setScanResult('فشل الفحص')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const resolveModerationItem = async (logId: string, action: 'approve' | 'remove' | 'warn') => {
+    try {
+      const res = await fetch('/api/admin/moderation-queue/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logId, action }),
+      })
+      if (res.ok) {
+        loadModerationQueue(moderationFilter)
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     loadStats()
   }, [loadStats])
@@ -129,8 +183,9 @@ export function AdminPanel() {
   useEffect(() => {
     if (tab === 'prompts') loadPrompts()
     if (tab === 'reports') loadReports()
+    if (tab === 'moderation') loadModerationQueue(moderationFilter)
     if (tab === 'stats') loadStats()
-  }, [tab, loadPrompts, loadReports, loadStats])
+  }, [tab, loadPrompts, loadReports, loadModerationQueue, loadStats, moderationFilter])
 
   const createPrompt = async () => {
     if (!newPromptText.trim() || !newPromptDate) {
@@ -234,6 +289,14 @@ export function AdminPanel() {
               {stats.pendingReports}
             </span>
           )}
+        </button>
+        <button
+          onClick={() => setTab('moderation')}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
+            tab === 'moderation' ? 'bg-background shadow' : 'text-muted-foreground'
+          }`}
+        >
+          🤖 المراجعة الذكية
         </button>
       </div>
 
@@ -490,6 +553,195 @@ export function AdminPanel() {
                 </div>
               </Card>
             ))
+          )}
+        </div>
+      )}
+
+      {/* Moderation tab — AI-powered content review */}
+      {tab === 'moderation' && (
+        <div className="space-y-4">
+          {/* AI Scan button */}
+          <Card className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                  <span>🤖</span>
+                  فحص ذكي بالموديلات المجانية
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  افحص أحدث المنشورات والتعليقات تلقائياً للكشف عن المخالفات
+                </p>
+                {scanResult && (
+                  <p className="text-xs text-primary mt-2">{scanResult}</p>
+                )}
+              </div>
+              <Button
+                onClick={scanForViolations}
+                disabled={scanning}
+                size="sm"
+                className="gap-2 shrink-0"
+              >
+                {scanning ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    جاري الفحص...
+                  </>
+                ) : (
+                  'فحص الآن'
+                )}
+              </Button>
+            </div>
+          </Card>
+
+          {/* Filter tabs */}
+          <div className="flex gap-2">
+            {(['pending', 'approved', 'removed', 'warned'] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setModerationFilter(status)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                  moderationFilter === status
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                }`}
+              >
+                {status === 'pending' ? 'للمراجعة' : status === 'approved' ? 'موافق عليه' : status === 'removed' ? 'محذوف' : 'مُحذَّر'}
+              </button>
+            ))}
+          </div>
+
+          {/* Moderation queue */}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : moderationQueue.length === 0 ? (
+            <Card className="p-8 text-center rounded-2xl border-dashed">
+              <p className="text-sm text-muted-foreground">
+                {moderationFilter === 'pending' ? 'مفيش محتوى للمراجعة 🎉' : 'مفيش سجلات في هذه الحالة'}
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {moderationQueue.map((item) => (
+                <Card
+                  key={item.id}
+                  className={`p-4 rounded-2xl ${
+                    item.severity >= 70 ? 'border-destructive/50 bg-destructive/5' :
+                    item.severity >= 40 ? 'border-amber-500/50 bg-amber-500/5' : ''
+                  }`}
+                >
+                  {/* User info */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Avatar
+                      name={item.user?.name || '?'}
+                      color={item.user?.avatarColor || '#888'}
+                      imageUrl={item.user?.avatarUrl}
+                      size="sm"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium">{item.user?.name || 'مستخدم'}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        @{item.user?.username} · {item.contentType === 'post' ? 'منشور' : 'تعليق'} · {new Date(item.createdAt).toLocaleDateString('ar')}
+                      </div>
+                    </div>
+                    {/* Severity badge */}
+                    <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      item.severity >= 70 ? 'bg-destructive/20 text-destructive' :
+                      item.severity >= 40 ? 'bg-amber-500/20 text-amber-600' :
+                      'bg-muted/30 text-muted-foreground'
+                    }`}>
+                      {item.severity}%
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="bg-muted/30 rounded-xl p-3 mb-3">
+                    <p className="text-sm whitespace-pre-wrap break-words">{item.text}</p>
+                  </div>
+
+                  {/* AI analysis */}
+                  <div className="text-xs text-muted-foreground mb-3 space-y-1">
+                    <div>
+                      <span className="font-medium">التحليل:</span> {item.explanation}
+                    </div>
+                    <div>
+                      <span className="font-medium">الفئات:</span>{' '}
+                      {(item.categories || []).map((cat: string) => {
+                        const labels: Record<string, string> = {
+                          hate_speech: 'خطاب كراهية',
+                          harassment: 'مضايقة',
+                          bullying: 'تنمر',
+                          insults: 'إهانات',
+                          profanity: 'ألفاظ نابية',
+                          spam: 'سبام',
+                          threats: 'تهديدات',
+                          explicit_content: 'محتوى صريح',
+                          personal_info: 'معلومات شخصية',
+                        }
+                        return labels[cat] || cat
+                      }).join('، ')}
+                    </div>
+                    <div>
+                      <span className="font-medium">الإجراء المقترح:</span>{' '}
+                      {item.action === 'allow' ? 'السماح' :
+                       item.action === 'warn' ? 'تحذير' :
+                       item.action === 'flag' ? 'مراجعة' : 'حظر'}
+                      {' · '}
+                      <span className="font-medium">الموديل:</span> {item.model}
+                      {item.userWarnings > 0 && (
+                        <span className="text-destructive font-medium"> · تحذيرات المستخدم: {item.userWarnings}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action buttons (only for pending items) */}
+                  {item.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => resolveModerationItem(item.id, 'approve')}
+                        className="gap-1 flex-1"
+                      >
+                        ✅ موافقة
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => resolveModerationItem(item.id, 'warn')}
+                        className="gap-1 flex-1 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                      >
+                        ⚠️ تحذير
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => resolveModerationItem(item.id, 'remove')}
+                        className="gap-1 flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
+                      >
+                        🗑️ حذف
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Status badge for resolved items */}
+                  {item.status !== 'pending' && (
+                    <div className="text-xs text-muted-foreground">
+                      الحالة:{' '}
+                      <span className="font-medium">
+                        {item.status === 'approved' ? '✅ موافق عليه' :
+                         item.status === 'removed' ? '🗑️ محذوف' :
+                         item.status === 'warned' ? '⚠️ مُحذَّر' : item.status}
+                      </span>
+                      {item.reviewedAt && (
+                        <span> · {new Date(item.reviewedAt).toLocaleDateString('ar')}</span>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       )}
