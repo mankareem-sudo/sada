@@ -509,7 +509,7 @@ export function PostCard({
                           <button
                             onClick={() => {
                               const username = c.user?.username
-                              if (username) onOpenProfile(username)
+                              if (username) onOpenProfile?.(username)
                             }}
                             className="shrink-0"
                             title={c.user?.name}
@@ -522,7 +522,7 @@ export function PostCard({
                                 <button
                                   onClick={() => {
                                     const username = c.user?.username
-                                    if (username) onOpenProfile(username)
+                                    if (username) onOpenProfile?.(username)
                                   }}
                                   className="font-medium text-sm hover:underline"
                                 >
