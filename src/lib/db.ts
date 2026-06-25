@@ -744,6 +744,9 @@ export const db = {
   message: createTableHandler('Message'),
   block: createTableHandler('Block'),
   pushSubscription: createTableHandler('PushSubscription'),
+  // Voice Stories (24h auto-expire)
+  voiceStory: createTableHandler('VoiceStory'),
+  voiceStoryView: createTableHandler('VoiceStoryView'),
   // For raw queries (used by migrate endpoint)
   $executeRawUnsafe: async (sql: string) => {
     // Use Supabase rpc to execute raw SQL
