@@ -24,6 +24,9 @@ interface SadaState {
   // Recorder modal
   recorderOpen: boolean
   setRecorderOpen: (v: boolean) => void
+  recorderMode: 'voice-note' | 'story'
+  setRecorderMode: (m: 'voice-note' | 'story') => void
+  openRecorder: (mode?: 'voice-note' | 'story') => void
 
   // Profile viewing: username or null = my profile
   viewedUsername: string | null
