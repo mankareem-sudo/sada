@@ -345,8 +345,12 @@ export function ProfileView({ username }: { username: string | null }) {
                 )}
               </div>
               <div className="text-sm text-muted-foreground mb-1" dir="ltr">@{profile.user.username}</div>
-            {profile.user.bio && <p className="text-sm mt-2 leading-relaxed">{profile.user.bio}</p>}
-            <p className="text-[11px] text-muted-foreground mt-2">انضم في {formatArabicDate(profile.user.createdAt)}</p>
+            </div>
+          </div>
+
+          {/* Bio + info (below avatar row, inside px-6) */}
+          {profile.user.bio && <p className="text-sm mt-2 leading-relaxed">{profile.user.bio}</p>}
+          <p className="text-[11px] text-muted-foreground mt-2">انضم في {formatArabicDate(profile.user.createdAt)}</p>
 
             {/* Voice Bio — 30-second audio introduction */}
             {(profile.user.voiceBioUrl || isMe) && (
@@ -408,8 +412,6 @@ export function ProfileView({ username }: { username: string | null }) {
                 )}
               </div>
             )}
-          </div>
-        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2 mt-5">
