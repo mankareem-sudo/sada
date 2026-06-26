@@ -75,7 +75,7 @@ const REASON_LABELS: Record<string, string> = {
 }
 
 export function AdminPanel() {
-  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation' | 'bots'>('stats')
+  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation' | 'bots' | 'sentinel'>('stats')
   const [stats, setStats] = useState<Stats>(null)
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [reports, setReports] = useState<Report[]>([])
@@ -86,6 +86,8 @@ export function AdminPanel() {
   const [seeding, setSeeding] = useState(false)
   const [activating, setActivating] = useState(false)
   const [botStatus, setBotStatus] = useState<string | null>(null)
+  const [sentinelReport, setSentinelReport] = useState<any>(null)
+  const [sentinelLoading, setSentinelLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
   // New prompt form
@@ -291,6 +293,27 @@ export function AdminPanel() {
     }
   }
 
+  // === Code-Sentinel ===
+  const runSentinelScan = async () => {
+    setSentinelLoading(true)
+    setSentinelReport(null)
+    try {
+      const res = await fetch('/api/sentinel/report', {
+        headers: { 'Authorization': 'Bearer sada-internal-token-2026' },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSentinelReport(data)
+      } else {
+        setBotStatus(`❌ ${data.error || 'فشل الفحص'}`)
+      }
+    } catch (e) {
+      setBotStatus('❌ فشل الاتصال بـ Sentinel')
+    } finally {
+      setSentinelLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadStats()
   }, [loadStats])
@@ -420,6 +443,14 @@ export function AdminPanel() {
           }`}
         >
           👥 البوتات
+        </button>
+        <button
+          onClick={() => setTab('sentinel')}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
+            tab === 'sentinel' ? 'bg-background shadow' : 'text-muted-foreground'
+          }`}
+        >
+          🛡️ Sentinel
         </button>
       </div>
 
@@ -1014,6 +1045,237 @@ export function AdminPanel() {
                 </div>
               </div>
             </Card>
+          )}
+        </div>
+      )}
+
+      {/* Code-Sentinel tab — autonomous dev agent */}
+      {tab === 'sentinel' && (
+        <div className="space-y-4">
+          {/* Scan button */}
+          <Card className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-500/20">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                  <span>🛡️</span>
+                  Code-Sentinel — وكيل التطوير الذكي
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  فحص شامل: الصحة + الأمان + الأداء + الكود + الحزم
+                </p>
+              </div>
+              <Button
+                onClick={runSentinelScan}
+                disabled={sentinelLoading}
+                size="sm"
+                className="gap-2 shrink-0"
+              >
+                {sentinelLoading ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    جاري الفحص...
+                  </>
+                ) : (
+                  '🔍 فحص شامل'
+                )}
+              </Button>
+            </div>
+          </Card>
+
+          {/* Report */}
+          {sentinelReport && (
+            <>
+              {/* Overall Score */}
+              <Card className={`p-4 rounded-2xl ${
+                sentinelReport.summary.overallScore >= 90 ? 'bg-emerald-500/10 border-emerald-500/30' :
+                sentinelReport.summary.overallScore >= 70 ? 'bg-amber-500/10 border-amber-500/30' :
+                'bg-red-500/10 border-red-500/30'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">النتيجة الإجمالية</div>
+                    <div className="text-3xl font-bold tabular-nums">{sentinelReport.summary.overallScore}/100</div>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    sentinelReport.summary.status === 'excellent' ? 'bg-emerald-500/20 text-emerald-600' :
+                    sentinelReport.summary.status === 'good' ? 'bg-amber-500/20 text-amber-600' :
+                    'bg-red-500/20 text-red-600'
+                  }`}>
+                    {sentinelReport.summary.status === 'excellent' ? 'ممتاز ✅' :
+                     sentinelReport.summary.status === 'good' ? 'جيد ⚠️' :
+                     sentinelReport.summary.status === 'needs-attention' ? 'محتاج اهتمام ⚠️' :
+                     'حرج 🔴'}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <Card className="p-3 rounded-xl text-center">
+                  <div className="text-xl font-bold text-emerald-500 tabular-nums">{sentinelReport.summary.healthyEndpoints}</div>
+                  <div className="text-[10px] text-muted-foreground">Endpoints سليمة</div>
+                </Card>
+                <Card className="p-3 rounded-xl text-center">
+                  <div className="text-xl font-bold text-red-500 tabular-nums">{sentinelReport.summary.downEndpoints}</div>
+                  <div className="text-[10px] text-muted-foreground">Endpoints معطلة</div>
+                </Card>
+                <Card className="p-3 rounded-xl text-center">
+                  <div className="text-xl font-bold text-red-500 tabular-nums">{sentinelReport.summary.criticalSecurityIssues}</div>
+                  <div className="text-[10px] text-muted-foreground">مشاكل أمنية حرجة</div>
+                </Card>
+                <Card className="p-3 rounded-xl text-center">
+                  <div className="text-xl font-bold text-amber-500 tabular-nums">{sentinelReport.summary.codeIssues}</div>
+                  <div className="text-[10px] text-muted-foreground">مشاكل في الكود</div>
+                </Card>
+              </div>
+
+              {/* Health Checks */}
+              <Card className="p-4 rounded-2xl">
+                <h4 className="font-semibold text-sm mb-3">📡 فحص الـ Endpoints</h4>
+                <div className="space-y-1.5">
+                  {sentinelReport.health.map((h: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between text-xs py-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${
+                          h.status === 'healthy' ? 'bg-emerald-500' :
+                          h.status === 'degraded' ? 'bg-amber-500' :
+                          h.status === 'auth-required' ? 'bg-blue-400' :
+                          'bg-red-500'
+                        }`} />
+                        <span className="font-mono text-muted-foreground">{h.method}</span>
+                        <span>{h.endpoint}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground tabular-nums">{h.responseTime}ms</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          h.status === 'healthy' ? 'bg-emerald-500/20 text-emerald-600' :
+                          h.status === 'degraded' ? 'bg-amber-500/20 text-amber-600' :
+                          h.status === 'auth-required' ? 'bg-blue-400/20 text-blue-500' :
+                          'bg-red-500/20 text-red-600'
+                        }`}>
+                          {h.statusCode}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Security Issues */}
+              {sentinelReport.security.length > 0 && (
+                <Card className="p-4 rounded-2xl">
+                  <h4 className="font-semibold text-sm mb-3">🔒 التدقيق الأمني</h4>
+                  <div className="space-y-2">
+                    {sentinelReport.security.map((s: any, i: number) => (
+                      <div key={i} className={`p-2.5 rounded-xl border ${
+                        s.severity === 'critical' ? 'border-red-500/50 bg-red-500/5' :
+                        s.severity === 'high' ? 'border-orange-500/50 bg-orange-500/5' :
+                        s.severity === 'medium' ? 'border-amber-500/50 bg-amber-500/5' :
+                        'border-muted/50 bg-muted/5'
+                      }`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="text-xs font-semibold">{s.title}</div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">{s.description}</div>
+                            <div className="text-[11px] text-primary mt-1">💡 {s.recommendation}</div>
+                          </div>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                            s.severity === 'critical' ? 'bg-red-500/20 text-red-600' :
+                            s.severity === 'high' ? 'bg-orange-500/20 text-orange-600' :
+                            s.severity === 'medium' ? 'bg-amber-500/20 text-amber-600' :
+                            'bg-muted/30 text-muted-foreground'
+                          }`}>
+                            {s.severity}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Performance */}
+              <Card className="p-4 rounded-2xl">
+                <h4 className="font-semibold text-sm mb-3">⚡ الأداء</h4>
+                <div className="space-y-1.5">
+                  {sentinelReport.performance.map((p: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between text-xs py-1">
+                      <span className="font-mono text-muted-foreground">{p.endpoint}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="tabular-nums">{p.avgResponseTime}ms</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          p.status === 'fast' ? 'bg-emerald-500/20 text-emerald-600' :
+                          p.status === 'acceptable' ? 'bg-blue-400/20 text-blue-500' :
+                          p.status === 'slow' ? 'bg-amber-500/20 text-amber-600' :
+                          'bg-red-500/20 text-red-600'
+                        }`}>
+                          {p.status === 'fast' ? 'سريع' :
+                           p.status === 'acceptable' ? 'مقبول' :
+                           p.status === 'slow' ? 'بطيء' : 'حرج'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Code Issues */}
+              {sentinelReport.codebase.length > 0 && (
+                <Card className="p-4 rounded-2xl">
+                  <h4 className="font-semibold text-sm mb-3">📝 تحليل الكود</h4>
+                  <div className="space-y-2">
+                    {sentinelReport.codebase.map((c: any, i: number) => (
+                      <div key={i} className={`p-2.5 rounded-xl border ${
+                        c.severity === 'critical' ? 'border-red-500/50 bg-red-500/5' :
+                        c.severity === 'high' ? 'border-orange-500/50 bg-orange-500/5' :
+                        c.severity === 'medium' ? 'border-amber-500/50 bg-amber-500/5' :
+                        'border-muted/50 bg-muted/5'
+                      }`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="text-xs font-semibold">{c.title}</div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">{c.description}</div>
+                            <div className="text-[11px] text-primary mt-1">💡 {c.recommendation}</div>
+                          </div>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                            c.severity === 'critical' ? 'bg-red-500/20 text-red-600' :
+                            c.severity === 'high' ? 'bg-orange-500/20 text-orange-600' :
+                            c.severity === 'medium' ? 'bg-amber-500/20 text-amber-600' :
+                            'bg-muted/30 text-muted-foreground'
+                          }`}>
+                            {c.severity}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Dependencies */}
+              {sentinelReport.dependencies.length > 0 && (
+                <Card className="p-4 rounded-2xl">
+                  <h4 className="font-semibold text-sm mb-3">📦 الحزم</h4>
+                  <div className="space-y-1.5">
+                    {sentinelReport.dependencies.map((d: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between text-xs py-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono">{d.name}</span>
+                          <span className="text-muted-foreground">v{d.currentVersion}</span>
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          d.type === 'vulnerable' ? 'bg-red-500/20 text-red-600' :
+                          d.type === 'outdated' ? 'bg-amber-500/20 text-amber-600' :
+                          'bg-muted/30 text-muted-foreground'
+                        }`}>
+                          {d.type}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </>
           )}
         </div>
       )}
