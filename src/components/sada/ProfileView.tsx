@@ -534,6 +534,7 @@ export function ProfileView({ username }: { username: string | null }) {
             </Button>
           </div>
         )}
+        </div>
       </Card>
 
       {/* Posts */}
