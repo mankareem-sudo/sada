@@ -10,7 +10,7 @@ import { useSada } from '@/lib/store'
 import { formatCount, formatArabicDate, timeAgo } from '@/lib/format'
 import type { SadaProfile } from '@/lib/types'
 import { toast } from 'sonner'
-import { UserPlus, UserCheck, Pencil, Trash2, Mic, Play, Users, UserPlus2, UserMinus, Globe, Lock, Eye, Pin } from 'lucide-react'
+import { UserPlus, UserCheck, Pencil, Trash2, Mic, Play, Users, UserPlus2, UserMinus, Globe, Lock, Eye, Pin, Camera, Loader2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +85,7 @@ export function ProfileView({ username }: { username: string | null }) {
   const [friendsList, setFriendsList] = useState<FriendInfo[]>([])
   const [friendsListType, setFriendsListType] = useState<'accepted' | 'received' | 'sent'>('accepted')
   const [loadingFriends, setLoadingFriends] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
 
   const target = username || user?.username || null
   const isMe = !username || username === user?.username
@@ -101,6 +102,48 @@ export function ProfileView({ username }: { username: string | null }) {
       if (res.ok) setProfile(data)
     } catch {} finally { setLoading(false) }
   }, [target, username, user?.id])
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { toast.error('الحد الأقصى 5 ميجا'); return }
+    if (!file.type.startsWith('image/')) { toast.error('ملف غير صحيح'); return }
+    setUploadingCover(true)
+    try {
+      // Convert to base64
+      const reader = new FileReader()
+      reader.onload = async () => {
+        const dataUrl = reader.result as string
+        try {
+          const res = await fetch('/api/auth/update-cover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ coverImage: dataUrl }),
+          })
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            toast.error(err.error || 'فشل رفع الغلاف')
+            return
+          }
+          const data = await res.json()
+          if (data.coverUrl && profile) {
+            // Update local profile state
+            setProfile({ ...profile, user: { ...profile.user, coverUrl: data.coverUrl } as any })
+            toast.success('تم تحديث الغلاف 🎉')
+          }
+        } catch {
+          toast.error('فشل')
+        } finally { setUploadingCover(false) }
+      }
+      reader.onerror = () => { toast.error('فشل قراءة الملف'); setUploadingCover(false) }
+      reader.readAsDataURL(file)
+    } catch {
+      toast.error('فشل')
+      setUploadingCover(false)
+    }
+    // Reset input so same file can be selected again
+    if (e.target) e.target.value = ''
+  }
 
   const loadPosts = useCallback(async () => {
     if (!profile?.user?.id) return
@@ -304,7 +347,7 @@ export function ProfileView({ username }: { username: string | null }) {
       <Card className="overflow-hidden rounded-3xl sada-glass p-0">
         {/* Cover photo */}
         <div
-          className="h-32 sm:h-48 relative"
+          className="h-32 sm:h-48 relative group"
           style={{
             background: (profile.user as any).coverUrl
               ? `url(${(profile.user as any).coverUrl}) center/cover`
@@ -312,12 +355,37 @@ export function ProfileView({ username }: { username: string | null }) {
           }}
         >
           {isMe && (
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition"
-            >
-              <Pencil className="h-3 w-3" /> تعديل الغلاف
-            </button>
+            <>
+              <label
+                className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition cursor-pointer"
+                title="تغيير صورة الغلاف"
+              >
+                {uploadingCover ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" /> جاري الرفع...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-3 w-3" /> تغيير الغلاف
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverUpload}
+                  disabled={uploadingCover}
+                  className="hidden"
+                />
+              </label>
+              {/* Hover overlay hint */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center pointer-events-none">
+                {!uploadingCover && (
+                  <span className="opacity-0 group-hover:opacity-100 transition text-white text-xs bg-black/40 px-3 py-1 rounded-full">
+                    اضغط لتغيير الغلاف
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </div>
 

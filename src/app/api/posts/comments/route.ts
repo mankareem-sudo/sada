@@ -4,6 +4,7 @@ import { getCurrentUser, sanitizeText, detectXSS, validateAudioData } from '@/li
 import { moderateText } from '@/lib/moderation'
 import { moderateWithAI, shouldAutoHide, shouldWarnUser } from '@/lib/ai-moderation'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { checkUserStrikeStatus } from '@/lib/strike'
 
 /**
  * GET /api/posts/comments?postId=xxx
@@ -163,6 +164,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
+
+  // === Strike system check ===
+  const strikeStatus = await checkUserStrikeStatus(user.id)
+  if (strikeStatus.currentPenalty === 'ban' || strikeStatus.currentPenalty === 'mute') {
+    const endsAt = strikeStatus.penaltyEndsAt
+      ? new Date(strikeStatus.penaltyEndsAt).toLocaleString('ar-EG')
+      : 'دائم'
+    const action = strikeStatus.currentPenalty === 'ban' ? 'حظر' : 'كتم'
+    return NextResponse.json({
+      error: `تم ${action} حسابك حتى: ${endsAt}`,
+      penalty: strikeStatus.currentPenalty,
+      penaltyEndsAt: strikeStatus.penaltyEndsAt,
+    }, { status: 403 })
+  }
 
   const rateCheck = checkRateLimit(req, 'comment', user.id)
   if (!rateCheck.allowed && rateCheck.response) return rateCheck.response

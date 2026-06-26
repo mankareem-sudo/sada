@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
       bio: target.bio,
       avatarColor: target.avatarColor,
       avatarUrl: target.avatarUrl,
+      coverUrl: target.coverUrl || null,
       voiceBioUrl: target.voiceBioUrl || null,
       voiceBioDuration: target.voiceBioDuration || 0,
       isVerified: target.isVerified || false,

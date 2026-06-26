@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSada } from '@/lib/store'
 import { AuthScreen } from '@/components/sada/AuthScreen'
 import { Header } from '@/components/sada/Header'
+import { StrikeBanner } from '@/components/sada/StrikeBanner'
 import { BottomNav } from '@/components/sada/BottomNav'
 import { TodayView } from '@/components/sada/TodayView'
 import { FeedView } from '@/components/sada/FeedView'
@@ -141,6 +142,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <StrikeBanner />
       <Header />
       <main className="flex-1">
         {tab === 'today' && <TodayView />}

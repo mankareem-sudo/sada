@@ -5,6 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { uploadPostImage } from '@/lib/storage'
 import { moderateText } from '@/lib/moderation'
 import { moderateWithAI, shouldAutoHide, shouldFlagForReview, shouldWarnUser } from '@/lib/ai-moderation'
+import { checkUserStrikeStatus } from '@/lib/strike'
 
 /**
  * POST /api/posts/create
@@ -15,6 +16,29 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user) {
     return NextResponse.json({ error: 'غير مسموح' }, { status: 401 })
+  }
+
+  // === Strike system check — block posting if user is muted or banned ===
+  const strikeStatus = await checkUserStrikeStatus(user.id)
+  if (strikeStatus.currentPenalty === 'ban') {
+    const endsAt = strikeStatus.penaltyEndsAt
+      ? new Date(strikeStatus.penaltyEndsAt).toLocaleString('ar-EG')
+      : 'دائم'
+    return NextResponse.json({
+      error: `تم حظر حسابك حتى: ${endsAt}`,
+      penalty: 'ban',
+      penaltyEndsAt: strikeStatus.penaltyEndsAt,
+    }, { status: 403 })
+  }
+  if (strikeStatus.currentPenalty === 'mute') {
+    const endsAt = strikeStatus.penaltyEndsAt
+      ? new Date(strikeStatus.penaltyEndsAt).toLocaleString('ar-EG')
+      : ''
+    return NextResponse.json({
+      error: `تم كتم حسابك حتى: ${endsAt}. لا يمكنك النشر حالياً`,
+      penalty: 'mute',
+      penaltyEndsAt: strikeStatus.penaltyEndsAt,
+    }, { status: 403 })
   }
 
   const rateCheck = checkRateLimit(req, 'voiceNoteCreate', user.id)
