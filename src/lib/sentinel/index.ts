@@ -40,7 +40,7 @@ export interface DependencyIssue {
 
 export interface CodeIssue {
   severity: 'critical' | 'high' | 'medium' | 'low'
-  category: 'code-smell' | 'tech-debt' | 'missing-feature' | 'bug-risk'
+  category: 'code-smell' | 'tech-debt' | 'missing-feature' | 'bug-risk' | 'security' | 'performance'
   title: string
   description: string
   file?: string
