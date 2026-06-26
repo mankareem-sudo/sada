@@ -18,12 +18,17 @@ function safePost(p: any, currentUserId?: string) {
       name: p.user.name,
       avatarColor: p.user.avatarColor,
       avatarUrl: p.user.avatarUrl,
+      isVerified: p.user.isVerified || false,
     } : null,
     likedByMe: currentUserId
       ? (p.likes || []).some((l: any) => l.userId === currentUserId)
       : false,
     likesCount: p._count?.likes ?? (p.likes?.length ?? 0),
     commentsCount: p._count?.comments ?? 0,
+    // Emotional reactions
+    myReaction: p.myReaction || null,
+    reactions: p.reactions || {},
+    reactionsCount: p.reactionsCount || 0,
   }
 }
 
@@ -145,6 +150,30 @@ export async function GET(req: NextRequest) {
 
   const myLikeSet = new Set(myLikes.map((l: any) => l.postId))
 
+  // === Fetch emotional reactions ===
+  let allReactions: any[] = []
+  let myReactions: any[] = []
+  if (postIds.length > 0) {
+    allReactions = await db.postReaction.findMany({
+      where: { postId: { in: postIds } },
+      select: { postId: true, type: true, userId: true },
+    })
+    if (user) {
+      myReactions = (allReactions as any[]).filter((r: any) => r.userId === user.id)
+    }
+  }
+
+  // Build reaction counts per post
+  const reactionCounts: Record<string, Record<string, number>> = {}
+  const myReactionMap: Record<string, string> = {}
+  for (const r of allReactions as any[]) {
+    if (!reactionCounts[r.postId]) reactionCounts[r.postId] = {}
+    reactionCounts[r.postId][r.type] = (reactionCounts[r.postId][r.type] || 0) + 1
+  }
+  for (const r of myReactions) {
+    myReactionMap[r.postId] = r.type
+  }
+
   const enrichedPosts = posts.map((p: any) => ({
     ...p,
     user: userMap.get(p.userId),
@@ -153,6 +182,9 @@ export async function GET(req: NextRequest) {
       likes: likeCounts[p.id] || 0,
       comments: commentCounts[p.id] || 0,
     },
+    myReaction: myReactionMap[p.id] || null,
+    reactions: reactionCounts[p.id] || {},
+    reactionsCount: Object.values(reactionCounts[p.id] || {}).reduce((a: number, b: any) => a + (b as number), 0),
   }))
 
   // === Smart Feed Ranking (6-criteria algorithm from strategy doc) ===

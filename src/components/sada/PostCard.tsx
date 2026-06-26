@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag, Pencil, Pin, Ban, Globe, Lock, Users } from 'lucide-react'
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag, Pencil, Pin, Ban, Globe, Lock, Users, ThumbsUp } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { formatCount, timeAgo } from '@/lib/format'
 import { toast } from 'sonner'
@@ -27,10 +27,14 @@ interface Post {
     name: string
     avatarColor: string
     avatarUrl?: string | null
+    isVerified?: boolean
   } | null
   likedByMe: boolean
   likesCount: number
   commentsCount: number
+  myReaction?: string | null
+  reactions?: Record<string, number>
+  reactionsCount?: number
 }
 
 interface Comment {
@@ -59,6 +63,10 @@ export function PostCard({
 }) {
   const [liked, setLiked] = useState(post.likedByMe)
   const [likesCount, setLikesCount] = useState(post.likesCount)
+  const [myReaction, setMyReaction] = useState<string | null>((post as any).myReaction || null)
+  const [showReactions, setShowReactions] = useState(false)
+  const [reactions, setReactions] = useState<Record<string, number>>((post as any).reactions || {})
+  const [reactionsCount, setReactionsCount] = useState((post as any).reactionsCount || 0)
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [loadingComments, setLoadingComments] = useState(false)
@@ -79,19 +87,94 @@ export function PostCard({
 
   const toggleLike = async () => {
     if (!user) { toast.error('سجّل دخول الأول'); return }
-    const newLiked = !liked
-    setLiked(newLiked)
-    setLikesCount((c) => Math.max(0, c + (newLiked ? 1 : -1)))
+    // If already has a reaction, remove it; otherwise add 'like'
+    if (myReaction) {
+      // Remove reaction
+      const oldReaction = myReaction
+      setMyReaction(null)
+      setReactionsCount(c => Math.max(0, c - 1))
+      setReactions(prev => {
+        const next = { ...prev }
+        if (next[oldReaction]) next[oldReaction] = Math.max(0, next[oldReaction] - 1)
+        return next
+      })
+      try {
+        await fetch('/api/posts/react', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: post.id, type: oldReaction }),
+        })
+      } catch {}
+    } else {
+      // Add 'like' reaction
+      setMyReaction('like')
+      setReactionsCount(c => c + 1)
+      setReactions(prev => ({ ...prev, like: (prev.like || 0) + 1 }))
+      try {
+        await fetch('/api/posts/react', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: post.id, type: 'like' }),
+        })
+      } catch {}
+    }
+  }
+
+  const handleReaction = async (type: string) => {
+    if (!user) { toast.error('سجّل دخول الأول'); return }
+    setShowReactions(false)
+
+    if (myReaction === type) {
+      // Toggle off
+      setMyReaction(null)
+      setReactionsCount(c => Math.max(0, c - 1))
+      setReactions(prev => {
+        const next = { ...prev }
+        if (next[type]) next[type] = Math.max(0, next[type] - 1)
+        return next
+      })
+    } else {
+      // Change or add reaction
+      if (myReaction) {
+        // Remove old
+        setReactions(prev => {
+          const next = { ...prev }
+          if (next[myReaction]) next[myReaction] = Math.max(0, next[myReaction] - 1)
+          return next
+        })
+      } else {
+        setReactionsCount(c => c + 1)
+      }
+      setMyReaction(type)
+      setReactions(prev => ({ ...prev, [type]: (prev[type] || 0) + 1 }))
+    }
+
     try {
-      await fetch('/api/posts/like', {
+      await fetch('/api/posts/react', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: post.id, action: newLiked ? 'like' : 'unlike' }),
+        body: JSON.stringify({ postId: post.id, type }),
       })
-    } catch {
-      setLiked(!newLiked)
-      setLikesCount((c) => Math.max(0, c + (newLiked ? -1 : 1)))
-    }
+    } catch {}
+  }
+
+  // Reaction emojis
+  const REACTION_EMOJIS: Record<string, string> = {
+    like: '👍',
+    love: '❤️',
+    laugh: '😂',
+    wow: '😮',
+    sad: '😢',
+    angry: '😡',
+  }
+
+  const REACTION_LABELS: Record<string, string> = {
+    like: 'إعجاب',
+    love: 'حب',
+    laugh: 'ضحك',
+    wow: 'دهشة',
+    sad: 'حزن',
+    angry: 'غضب',
   }
 
   // Heart animation
@@ -415,22 +498,75 @@ export function PostCard({
 
           {/* Actions */}
           <div className="flex items-center gap-4 px-4 py-3 border-t border-border/30">
-            <motion.button
-              whileTap={{ scale: 0.8 }}
-              onClick={toggleLike}
-              className="flex items-center gap-1.5 text-sm transition"
+            {/* Like/Reaction button with hover popup */}
+            <div
+              className="relative"
+              onMouseEnter={() => setShowReactions(true)}
+              onMouseLeave={() => setShowReactions(false)}
             >
-              <motion.div animate={liked ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
-                <Heart className={`h-5 w-5 ${liked ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
-              </motion.div>
-              <span className={`tabular-nums ${liked ? 'text-red-500' : 'text-muted-foreground'}`}>{formatCount(likesCount)}</span>
-            </motion.button>
+              {/* Reaction popup */}
+              {showReactions && (
+                <div className="absolute bottom-full mb-2 left-0 flex gap-1 bg-card border border-border rounded-full px-2 py-1.5 shadow-xl z-20">
+                  {Object.entries(REACTION_EMOJIS).map(([type, emoji]) => (
+                    <button
+                      key={type}
+                      onClick={() => handleReaction(type)}
+                      className={`text-2xl hover:scale-125 transition-transform ${myReaction === type ? 'scale-110' : ''}`}
+                      title={REACTION_LABELS[type]}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <motion.button
+                whileTap={{ scale: 0.8 }}
+                onClick={toggleLike}
+                className="flex items-center gap-1.5 text-sm transition"
+              >
+                <motion.div animate={myReaction ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
+                  {myReaction ? (
+                    <span className="text-xl leading-none">{REACTION_EMOJIS[myReaction]}</span>
+                  ) : (
+                    <ThumbsUp className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </motion.div>
+                <span className={`tabular-nums ${myReaction ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {formatCount(reactionsCount)}
+                </span>
+              </motion.button>
+            </div>
 
             <button onClick={() => setShowComments(v => !v)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition">
               <MessageCircle className="h-5 w-5" />
               <span className="tabular-nums">{formatCount(post.commentsCount)}</span>
             </button>
+
+            <button onClick={share} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition">
+              <Share2 className="h-5 w-5" />
+            </button>
+
+            <button onClick={toggleSave} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition ml-auto">
+              <Bookmark className={`h-5 w-5 ${saved ? 'fill-primary text-primary' : ''}`} />
+            </button>
           </div>
+
+          {/* Reaction summary */}
+          {reactionsCount > 0 && (
+            <div className="px-4 pb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex -space-x-1">
+                {Object.entries(reactions)
+                  .filter(([_, count]) => count > 0)
+                  .slice(0, 3)
+                  .map(([type, _]) => (
+                    <span key={type} className="text-sm leading-none">
+                      {REACTION_EMOJIS[type]}
+                    </span>
+                  ))}
+              </div>
+              <span>{formatCount(reactionsCount)}</span>
+            </div>
+          )}
 
           {/* Comments */}
           <AnimatePresence>
