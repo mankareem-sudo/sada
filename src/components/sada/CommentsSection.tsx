@@ -142,6 +142,10 @@ export function CommentsSection({ voiceNoteId, initialCount, postOwnerId }: Comm
     }
   }
 
+  const handleEdit = (commentId: string, newContent: string, editedAt: string) => {
+    setComments(prev => editCommentInTree(prev, commentId, newContent, editedAt))
+  }
+
   const totalCount = countAllComments(comments)
 
   return (
@@ -204,6 +208,7 @@ export function CommentsSection({ voiceNoteId, initialCount, postOwnerId }: Comm
                   onLike={toggleCommentLike}
                   onPin={togglePin}
                   onHide={toggleHide}
+                  onEdit={handleEdit}
                   canPin={!!user && user.id === postOwnerId}
                   canHide={!!user && (user.id === postOwnerId || user.id === c.user?.id || user.isAdmin)}
                   onSubmitReply={(parentId, text) => {
@@ -321,6 +326,18 @@ function setHiddenInTree(comments: NestedComment[], id: string, hidden: boolean)
   })
 }
 
+function editCommentInTree(comments: NestedComment[], id: string, content: string, editedAt: string): NestedComment[] {
+  return comments.map(c => {
+    if (c.id === id) {
+      return { ...c, content, editedAt }
+    }
+    if (c.replies && c.replies.length > 0) {
+      return { ...c, replies: editCommentInTree(c.replies, id, content, editedAt) }
+    }
+    return c
+  })
+}
+
 // === Comment Item Component (recursive) ===
 
 function CommentItem({
@@ -333,6 +350,7 @@ function CommentItem({
   onSubmitReply,
   onPin,
   onHide,
+  onEdit,
   canPin,
   canHide,
 }: {
@@ -345,13 +363,48 @@ function CommentItem({
   onSubmitReply: (parentId: string, text: string) => void
   onPin?: (commentId: string) => void
   onHide?: (commentId: string) => void
+  onEdit?: (id: string, content: string, editedAt: string) => void
   canPin?: boolean
   canHide?: boolean
 }) {
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [replyText, setReplyText] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(comment.content || '')
+  const [savingEdit, setSavingEdit] = useState(false)
   const depth = comment.depth || 0
   const maxDepth = 5
+
+  // Check if user can edit (own comment + within 15min window)
+  const canEdit = !!user && user.id === comment.user?.id && (
+    Date.now() - new Date(comment.createdAt).getTime() < 15 * 60 * 1000
+  )
+
+  const saveEdit = async () => {
+    if (!editText.trim()) return
+    setSavingEdit(true)
+    try {
+      const res = await fetch('/api/posts/comments/edit', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: comment.id, content: editText.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'فشل التعديل')
+        return
+      }
+      // Update local comment object in place (parent re-renders via state lift)
+      // Since we can't directly mutate, we trigger parent reload via onEdit callback
+      onEdit?.(comment.id, data.content, data.editedAt)
+      setEditing(false)
+      toast.success('تم التعديل')
+    } catch {
+      toast.error('فشل')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   // Hidden comment placeholder (only visible to author/post-owner/admin)
   if (comment.isHidden) {
@@ -393,6 +446,7 @@ function CommentItem({
                   onSubmitReply={onSubmitReply}
                   onPin={onPin}
                   onHide={onHide}
+                  onEdit={onEdit}
                   canPin={canPin}
                   canHide={canHide}
                 />
@@ -450,7 +504,39 @@ function CommentItem({
               )}
             </span>
           </div>
-          {comment.content && <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>}
+          {editing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full bg-muted/30 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary resize-none"
+                rows={2}
+                maxLength={500}
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={saveEdit}
+                  disabled={savingEdit || !editText.trim()}
+                  className="text-[11px] px-3 py-1 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {savingEdit && <Loader2 className="h-3 w-3 animate-spin" />}
+                  حفظ
+                </button>
+                <button
+                  onClick={() => { setEditing(false); setEditText(comment.content || '') }}
+                  className="text-[11px] px-3 py-1 text-muted-foreground hover:text-foreground"
+                >
+                  إلغاء
+                </button>
+                <span className="text-[10px] text-muted-foreground mr-auto">
+                  {editText.length}/500
+                </span>
+              </div>
+            </div>
+          ) : (
+            comment.content && <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -498,6 +584,16 @@ function CommentItem({
               title={comment.isHidden ? 'إظهار التعليق' : 'إخفاء التعليق'}
             >
               <EyeOff className="h-3 w-3" />
+            </button>
+          )}
+
+          {canEdit && !editing && (
+            <button
+              onClick={() => { setEditing(true); setEditText(comment.content || '') }}
+              className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+              title="تعديل التعليق"
+            >
+              <Pencil className="h-3 w-3" />
             </button>
           )}
 

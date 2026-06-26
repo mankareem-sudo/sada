@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
+import { StrikesTab } from './StrikesTab'
 import {
   Shield,
   Plus,
@@ -75,7 +76,7 @@ const REASON_LABELS: Record<string, string> = {
 }
 
 export function AdminPanel() {
-  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation' | 'bots' | 'sentinel'>('stats')
+  const [tab, setTab] = useState<'stats' | 'prompts' | 'reports' | 'moderation' | 'bots' | 'sentinel' | 'strikes'>('stats')
   const [stats, setStats] = useState<Stats>(null)
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [reports, setReports] = useState<Report[]>([])
@@ -451,6 +452,14 @@ export function AdminPanel() {
           }`}
         >
           🛡️ Sentinel
+        </button>
+        <button
+          onClick={() => setTab('strikes')}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
+            tab === 'strikes' ? 'bg-background shadow' : 'text-muted-foreground'
+          }`}
+        >
+          ⚠️ العقوبات
         </button>
       </div>
 
@@ -1279,6 +1288,9 @@ export function AdminPanel() {
           )}
         </div>
       )}
+
+      {/* Strikes tab */}
+      {tab === 'strikes' && <StrikesTab />}
     </div>
   )
 }

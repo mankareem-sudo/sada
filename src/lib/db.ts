@@ -509,7 +509,7 @@ function createTableHandler(tableName: string): any {
       }
       // Auto-set createdAt/updatedAt if not provided AND table has these columns
       // Session table doesn't have updatedAt, so we skip it for tables without it
-      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView', 'VoiceCircle', 'VoiceCircleMember', 'ProfileView', 'VoiceDraft', 'CommentLike', 'MuteWord', 'ModerationLog', 'UserWarning', 'PostReaction', 'PollVote']
+      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView', 'VoiceCircle', 'VoiceCircleMember', 'ProfileView', 'VoiceDraft', 'CommentLike', 'MuteWord', 'ModerationLog', 'UserWarning', 'PostReaction', 'PollVote', 'Event', 'EventRSVP']
       const nowIso = new Date().toISOString()
       if (!data.createdAt) data.createdAt = nowIso
       if (!data.updatedAt && !tablesWithoutUpdatedAt.includes(tableName)) {
@@ -595,7 +595,7 @@ function createTableHandler(tableName: string): any {
       // Build filter from where
       const filter = buildFilter(args.where)
       // Auto-update updatedAt if applicable (only for tables that have it)
-      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView', 'VoiceCircle', 'VoiceCircleMember', 'ProfileView', 'VoiceDraft', 'CommentLike', 'MuteWord', 'ModerationLog', 'UserWarning', 'PostReaction', 'PollVote']
+      const tablesWithoutUpdatedAt = ['Session', 'Follow', 'Like', 'Comment', 'Bookmark', 'Report', 'Notification', 'SupportDonation', 'Post', 'PostLike', 'PostComment', 'Friendship', 'Message', 'Block', 'VoiceStory', 'VoiceStoryView', 'VoiceCircle', 'VoiceCircleMember', 'ProfileView', 'VoiceDraft', 'CommentLike', 'MuteWord', 'ModerationLog', 'UserWarning', 'PostReaction', 'PollVote', 'Event', 'EventRSVP']
       const updateData = { ...args.data }
       if (!tablesWithoutUpdatedAt.includes(tableName)) {
         if (!updateData.updatedAt) updateData.updatedAt = new Date().toISOString()
@@ -766,6 +766,10 @@ export const db = {
   postReaction: createTableHandler('PostReaction'),
   // Poll votes (for type='poll' posts)
   pollVote: createTableHandler('PollVote'),
+  // Events (circle-scoped or global)
+  event: createTableHandler('Event'),
+  // Event RSVPs (going/maybe/not_going)
+  eventRSVP: createTableHandler('EventRSVP'),
   // For raw queries (used by migrate endpoint)
   $executeRawUnsafe: async (sql: string) => {
     // Use Supabase rpc to execute raw SQL
