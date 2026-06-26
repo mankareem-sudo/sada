@@ -300,25 +300,51 @@ export function ProfileView({ username }: { username: string | null }) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 pb-28 space-y-5">
-      {/* Profile header */}
-      <Card className="p-6 rounded-3xl sada-glass">
-        <div className="flex items-start gap-4">
-          <Avatar
-            name={profile.user.name}
-            color={profile.user.avatarColor}
-            imageUrl={profile.user.avatarUrl}
-            size="xl"
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold font-cairo">{profile.user.name}</h2>
-              {isMe && (
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSettingsOpen(true)}>
-                  <Pencil className="h-3 w-3 ml-1" /> تعديل
-                </Button>
-              )}
+      {/* Profile header with cover photo (Facebook-style) */}
+      <Card className="overflow-hidden rounded-3xl sada-glass p-0">
+        {/* Cover photo */}
+        <div
+          className="h-32 sm:h-48 relative"
+          style={{
+            background: (profile.user as any).coverUrl
+              ? `url(${(profile.user as any).coverUrl}) center/cover`
+              : `linear-gradient(135deg, ${profile.user.avatarColor}, ${profile.user.avatarColor}88)`,
+          }}
+        >
+          {isMe && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition"
+            >
+              <Pencil className="h-3 w-3" /> تعديل الغلاف
+            </button>
+          )}
+        </div>
+
+        {/* Avatar + name section */}
+        <div className="px-6 pb-4 -mt-12 sm:-mt-16 relative">
+          <div className="flex items-end gap-4">
+            <div className="rounded-full border-4 border-background">
+              <Avatar
+                name={profile.user.name}
+                color={profile.user.avatarColor}
+                imageUrl={profile.user.avatarUrl}
+                size="xl"
+              />
             </div>
-            <div className="text-sm text-muted-foreground mb-1" dir="ltr">@{profile.user.username}</div>
+            <div className="flex-1 min-w-0 pb-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-bold font-cairo">{profile.user.name}</h2>
+                {(profile.user as any).isVerified && (
+                  <span className="text-primary text-sm">✓</span>
+                )}
+                {isMe && (
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSettingsOpen(true)}>
+                    <Pencil className="h-3 w-3 ml-1" /> تعديل
+                  </Button>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground mb-1" dir="ltr">@{profile.user.username}</div>
             {profile.user.bio && <p className="text-sm mt-2 leading-relaxed">{profile.user.bio}</p>}
             <p className="text-[11px] text-muted-foreground mt-2">انضم في {formatArabicDate(profile.user.createdAt)}</p>
 

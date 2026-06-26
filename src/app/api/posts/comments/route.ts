@@ -7,47 +7,84 @@ import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * GET /api/posts/comments?postId=xxx
+ *
+ * Returns comments with full nested reply tree (up to 5 levels).
+ * Uses recursive fetching: get top-level → get their replies → get replies of replies.
+ *
+ * Returns comments with `replies` array (nested tree structure).
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const postId = url.searchParams.get('postId')
   if (!postId) return NextResponse.json({ error: 'missing postId' }, { status: 400 })
 
-  const comments = await db.postComment.findMany({
+  // Get top-level comments (depth=0, parentId=null)
+  const topLevelComments = await db.postComment.findMany({
     where: { postId, parentId: null },
     orderBy: { createdAt: 'asc' },
-    take: 100,
+    take: 50, // Lazy load: first 50 comments
   })
 
-  // Get users
-  const userIds = [...new Set(comments.map((c: any) => c.userId))]
-  const users = userIds.length > 0 ? await db.user.findMany({ where: { id: { in: userIds } } }) : []
-  const userMap = new Map(users.map((u: any) => [u.id, u]))
+  if ((topLevelComments as any[]).length === 0) {
+    return NextResponse.json({ comments: [] })
+  }
 
-  // Get replies
-  const commentIds = comments.map((c: any) => c.id)
-  let replies: any[] = []
-  if (commentIds.length > 0) {
-    replies = await db.postComment.findMany({
-      where: { parentId: { in: commentIds } },
+  // Collect all comment IDs for batch fetching
+  const allCommentIds = [...(topLevelComments as any[]).map((c: any) => c.id)]
+  const userMap = new Map<string, any>()
+
+  // Fetch all replies (depth 1-5) in batches
+  // This is more efficient than N+1 queries
+  let currentLevelIds = [...allCommentIds]
+  const allComments = [...(topLevelComments as any[])]
+
+  for (let depth = 1; depth <= 5; depth++) {
+    if (currentLevelIds.length === 0) break
+
+    const replies = await db.postComment.findMany({
+      where: { parentId: { in: currentLevelIds } },
       orderBy: { createdAt: 'asc' },
     })
-    const replyUserIds = [...new Set(replies.map((r: any) => r.userId))]
-    if (replyUserIds.length > 0) {
-      const replyUsers = await db.user.findMany({ where: { id: { in: replyUserIds } } })
-      replyUsers.forEach((u: any) => userMap.set(u.id, u))
+
+    if ((replies as any[]).length === 0) break
+
+    allComments.push(...(replies as any[]))
+    currentLevelIds = (replies as any[]).map((r: any) => r.id)
+  }
+
+  // Fetch all users in one query
+  const userIds = [...new Set(allComments.map((c: any) => c.userId))]
+  if (userIds.length > 0) {
+    const users = await db.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true, name: true, avatarColor: true, avatarUrl: true, isVerified: true },
+    })
+    ;(users as any[]).forEach((u: any) => userMap.set(u.id, u))
+  }
+
+  // Fetch comment likes for current user
+  const currentUser = await getCurrentUser()
+  const commentIds = allComments.map((c: any) => c.id)
+  let myCommentLikes = new Set<string>()
+  let commentLikeCounts: Record<string, number> = {}
+
+  if (commentIds.length > 0) {
+    const allLikes = await db.commentLike.findMany({
+      where: { commentId: { in: commentIds } },
+      select: { commentId: true, userId: true },
+    })
+    for (const l of allLikes as any[]) {
+      commentLikeCounts[l.commentId] = (commentLikeCounts[l.commentId] || 0) + 1
+    }
+    if (currentUser) {
+      myCommentLikes = new Set((allLikes as any[]).filter((l: any) => l.userId === currentUser.id).map((l: any) => l.commentId))
     }
   }
 
-  const replyMap: Record<string, any[]> = {}
-  for (const r of replies) {
-    const pId = (r as any).parentId
-    if (!replyMap[pId]) replyMap[pId] = []
-    replyMap[pId].push({ ...r, user: userMap.get((r as any).userId) })
-  }
-
-  return NextResponse.json({
-    comments: comments.map((c: any) => ({
+  // Build nested tree
+  const commentMap = new Map<string, any>()
+  for (const c of allComments) {
+    commentMap.set(c.id, {
       id: c.id,
       content: c.content,
       imageUrl: c.imageUrl,
@@ -55,15 +92,35 @@ export async function GET(req: NextRequest) {
       voiceDuration: c.voiceDuration,
       createdAt: c.createdAt,
       parentId: c.parentId,
+      depth: c.depth || 0,
       user: userMap.get(c.userId),
-      replies: replyMap[c.id] || [],
-    })),
-  })
+      likesCount: commentLikeCounts[c.id] || 0,
+      likedByMe: myCommentLikes.has(c.id),
+      replies: [],
+    })
+  }
+
+  // Build tree: attach replies to their parents
+  for (const c of allComments) {
+    if (c.parentId && commentMap.has(c.parentId)) {
+      commentMap.get(c.parentId).replies.push(commentMap.get(c.id))
+    }
+  }
+
+  // Return only top-level comments (with nested replies)
+  const topLevelIds = new Set((topLevelComments as any[]).map((c: any) => c.id))
+  const result = Array.from(commentMap.values()).filter((c: any) => topLevelIds.has(c.id))
+
+  return NextResponse.json({ comments: result })
 }
 
 /**
  * POST /api/posts/comments
  * body: { postId, content?, imageUrl?, voiceData?, voiceDuration?, parentId? }
+ *
+ * Creates a comment or reply (nested up to 5 levels).
+ * If parentId is provided, the new comment is a reply at depth = parent.depth + 1.
+ * At max depth (5), replies flatten to the same level.
  */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
@@ -83,40 +140,57 @@ export async function POST(req: NextRequest) {
   }
 
   if (!postId) return NextResponse.json({ error: 'missing postId' }, { status: 400 })
-
-  // Need at least one type of content
   if (!content && !imageUrl && !voiceData) {
     return NextResponse.json({ error: 'محتاج محتوى' }, { status: 400 })
   }
 
   const data: any = {
     id: generateId(),
-    userId: user.id,
     postId,
+    userId: user.id,
     createdAt: new Date().toISOString(),
   }
+
+  // Determine depth based on parent
+  let depth = 0
+  let replyToName: string | null = null
+
+  if (parentId) {
+    // Fetch parent comment to get its depth
+    const parent = await db.postComment.findUnique({ where: { id: parentId } })
+    if (parent) {
+      // Max depth = 5. At max depth, flatten (stay at depth 5)
+      depth = Math.min((parent.depth || 0) + 1, 5)
+      replyToName = null // Could fetch parent user name for "@name" prefix
+
+      // Get parent user's name for reply context
+      const parentUser = await db.user.findUnique({
+        where: { id: parent.userId },
+        select: { name: true },
+      })
+      if (parentUser) {
+        replyToName = parentUser.name
+      }
+    }
+  }
+
+  data.depth = depth
+  data.parentId = parentId || null
 
   if (content) {
     const clean = sanitizeText(content, 500)
     if (detectXSS(clean)) return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
 
-    // AI Moderation — comprehensive check
     const aiResult = await moderateWithAI(clean)
     if (aiResult.action === 'block' || shouldAutoHide(aiResult)) {
       return NextResponse.json(
-        {
-          error: 'تعليقك مخالف لسياسة المنصة',
-          reasons: aiResult.categories,
-          explanation: aiResult.explanation,
-          severity: aiResult.severity,
-        },
+        { error: 'تعليقك مخالف لسياسة المنصة', reasons: aiResult.categories, explanation: aiResult.explanation },
         { status: 422 }
       )
     }
 
     data.content = clean
 
-    // Send warning if needed
     if (shouldWarnUser(aiResult)) {
       await db.userWarning.create({
         data: {
@@ -148,9 +222,44 @@ export async function POST(req: NextRequest) {
     data.voiceDuration = voiceDuration || 0
   }
 
-  if (parentId) data.parentId = parentId
-
   const comment = await db.postComment.create({ data })
+
+  // Send notifications
+  const post = await db.post.findUnique({ where: { id: postId } })
+  if (post) {
+    // Notify post owner (if not commenting on own post)
+    if (post.userId !== user.id) {
+      await db.notification.create({
+        data: {
+          id: generateId(),
+          recipientId: post.userId,
+          actorId: user.id,
+          type: 'comment',
+          text: `${user.name} علّق على منشورك`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+      }).catch(() => {})
+    }
+
+    // If reply, notify the parent comment author too
+    if (parentId) {
+      const parent = await db.postComment.findUnique({ where: { id: parentId } })
+      if (parent && parent.userId !== user.id && parent.userId !== post.userId) {
+        await db.notification.create({
+          data: {
+            id: generateId(),
+            recipientId: parent.userId,
+            actorId: user.id,
+            type: 'comment',
+            text: `${user.name} رد على تعليقك`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        }).catch(() => {})
+      }
+    }
+  }
 
   return NextResponse.json({
     id: comment.id,
@@ -159,6 +268,9 @@ export async function POST(req: NextRequest) {
     voiceData: comment.voiceData,
     voiceDuration: comment.voiceDuration,
     createdAt: comment.createdAt,
+    parentId: comment.parentId,
+    depth: comment.depth || 0,
+    replyToName,
     user: { id: user.id, name: user.name, username: user.username, avatarColor: user.avatarColor, avatarUrl: user.avatarUrl },
   })
 }
@@ -174,6 +286,34 @@ export async function DELETE(req: NextRequest) {
   const id = url.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 })
 
-  await db.postComment.deleteMany({ where: { id, userId: user.id } })
-  return NextResponse.json({ ok: true })
+  const comment = await db.postComment.findUnique({ where: { id } })
+  if (!comment) return NextResponse.json({ error: 'التعليق غير موجود' }, { status: 404 })
+  if (comment.userId !== user.id) return NextResponse.json({ error: 'غير مسموح' }, { status: 403 })
+
+  // Delete the comment and all its replies (cascade)
+  // First, find all descendant comments
+  const toDelete: string[] = [id]
+  let currentIds = [id]
+
+  for (let i = 0; i < 5; i++) {
+    const children = await db.postComment.findMany({
+      where: { parentId: { in: currentIds } },
+      select: { id: true },
+    })
+    if ((children as any[]).length === 0) break
+    currentIds = (children as any[]).map((c: any) => c.id)
+    toDelete.push(...currentIds)
+  }
+
+  // Delete comment likes for all affected comments
+  await db.commentLike.deleteMany({ where: { commentId: { in: toDelete } } }).catch(() => {})
+
+  // Delete all comments
+  for (const commentId of toDelete) {
+    try {
+      await db.postComment.delete({ where: { id: commentId } })
+    } catch {}
+  }
+
+  return NextResponse.json({ ok: true, deleted: toDelete.length })
 }
