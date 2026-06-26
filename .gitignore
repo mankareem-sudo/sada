@@ -70,3 +70,4 @@ backups/
 # Generated icons (regenerate with scripts/)
 android-resources/
 .vercel
+tsconfig.tsbuildinfo

@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from './Avatar'
 import { VoicePlayer } from './VoicePlayer'
+import { PollView } from './PollView'
 import { Heart, MessageCircle, MoreHorizontal, Trash2, Send, Image as ImageIcon, Mic, Play, X, Loader2, Share2, Bookmark, Flag, Pencil, Pin, Ban, Globe, Lock, Users, ThumbsUp } from 'lucide-react'
 import { useSada } from '@/lib/store'
 import { formatCount, timeAgo } from '@/lib/format'
@@ -494,6 +495,53 @@ export function PostCard({
                 )}
               </AnimatePresence>
             </div>
+          )}
+
+          {/* Link preview (for type='link') */}
+          {(post as any).linkUrl && (
+            <a
+              href={(post as any).linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block mx-4 mb-3 border border-border rounded-xl overflow-hidden hover:bg-muted/30 transition group"
+            >
+              {(post as any).linkImage && (
+                <div className="aspect-video bg-muted overflow-hidden">
+                  <img
+                    src={(post as any).linkImage}
+                    alt={(post as any).linkTitle || 'Link preview'}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                    onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }}
+                  />
+                </div>
+              )}
+              <div className="p-3">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                  {(post as any).linkSiteName || new URL((post as any).linkUrl).hostname.replace(/^www\./, '')}
+                </div>
+                {(post as any).linkTitle && (
+                  <div className="text-sm font-medium line-clamp-2">{(post as any).linkTitle}</div>
+                )}
+                {(post as any).linkDescription && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(post as any).linkDescription}</p>
+                )}
+              </div>
+            </a>
+          )}
+
+          {/* Poll (for type='poll') */}
+          {(post as any).type === 'poll' && (post as any).pollQuestion && (
+            <PollView
+              postId={post.id}
+              question={(post as any).pollQuestion}
+              options={(post as any).pollOptions || []}
+              totals={(post as any).pollTotals || {}}
+              myVotes={(post as any).pollMyVotes || []}
+              totalVotes={(post as any).pollTotalVotes || 0}
+              allowMultiple={(post as any).pollAllowMultiple || false}
+              expiresAt={(post as any).pollExpiresAt}
+            />
           )}
 
           {/* Actions */}

@@ -21,16 +21,22 @@ export async function POST(req: NextRequest) {
   if (!rateCheck.allowed && rateCheck.response) return rateCheck.response
 
   const body = await req.json()
-  const { type, content, imageUrl, voiceNoteId, privacy, scheduledAt } = body as {
+  const { type, content, imageUrl, voiceNoteId, privacy, scheduledAt,
+          linkPreview, pollQuestion, pollOptions, pollAllowMultiple, pollDurationHours } = body as {
     type?: string
     content?: string
     imageUrl?: string
     voiceNoteId?: string
     privacy?: string
     scheduledAt?: string
+    linkPreview?: { url: string; title?: string; description?: string; image?: string; siteName?: string }
+    pollQuestion?: string
+    pollOptions?: string[]
+    pollAllowMultiple?: boolean
+    pollDurationHours?: number
   }
 
-  if (!type || !['text', 'image', 'voice'].includes(type)) {
+  if (!type || !['text', 'image', 'voice', 'link', 'poll'].includes(type)) {
     return NextResponse.json({ error: 'نوع البوست غير صحيح' }, { status: 400 })
   }
 
@@ -146,8 +152,40 @@ export async function POST(req: NextRequest) {
     data.voiceNoteId = voiceNoteId
   }
 
+  // === Link preview ===
+  if (type === 'link' && linkPreview?.url) {
+    data.linkUrl = linkPreview.url
+    data.linkTitle = linkPreview.title || null
+    data.linkDescription = linkPreview.description || null
+    data.linkImage = linkPreview.image || null
+    data.linkFetchedAt = new Date().toISOString()
+  }
+
+  // === Poll ===
+  if (type === 'poll') {
+    if (!pollQuestion || !pollOptions || pollOptions.length < 2 || pollOptions.length > 6) {
+      return NextResponse.json({ error: 'الاستطلاع يحتاج سؤال وخيارين على الأقل (أقصى 6)' }, { status: 400 })
+    }
+    const cleanQ = sanitizeText(pollQuestion, 200)
+    if (detectXSS(cleanQ)) {
+      return NextResponse.json({ error: 'محتوى غير مسموح' }, { status: 400 })
+    }
+    data.pollQuestion = cleanQ
+    // Store options as JSON: [{id, text}]
+    const opts = pollOptions.slice(0, 6).map((text, i) => ({
+      id: `opt_${i}_${Date.now().toString(36)}`,
+      text: sanitizeText(text, 80),
+    }))
+    data.pollOptions = JSON.stringify(opts)
+    data.pollAllowMultiple = !!pollAllowMultiple
+    if (pollDurationHours && pollDurationHours > 0 && pollDurationHours <= 24 * 30) {
+      const expires = new Date(Date.now() + pollDurationHours * 3600 * 1000)
+      data.pollExpiresAt = expires.toISOString()
+    }
+  }
+
   // Require at least some content
-  if (!data.content && !data.imageUrl && !data.voiceNoteId) {
+  if (!data.content && !data.imageUrl && !data.voiceNoteId && !data.linkUrl && !data.pollQuestion) {
     return NextResponse.json({ error: 'محتاج محتوى' }, { status: 400 })
   }
 

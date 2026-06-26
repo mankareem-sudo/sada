@@ -7,12 +7,61 @@ export interface SadaUser {
   bio?: string | null
   avatarColor: string
   avatarUrl?: string | null
+  coverUrl?: string | null
+  isVerified?: boolean
   isAdmin?: boolean
   onboarded?: boolean
   interests?: string | null
   theme?: string
   language?: string
   emailVerified?: boolean
+}
+
+export interface SadaLinkPreview {
+  url: string
+  title?: string | null
+  description?: string | null
+  image?: string | null
+  siteName?: string | null
+}
+
+export interface SadaPollOption {
+  id: string
+  text: string
+}
+
+export interface SadaPost {
+  id: string
+  type: 'text' | 'image' | 'voice' | 'link' | 'poll'
+  content?: string | null
+  imageUrl?: string | null
+  voiceNoteId?: string | null
+  privacy?: string
+  hashtags?: string | null
+  createdAt: string
+  // Link preview fields
+  linkUrl?: string | null
+  linkTitle?: string | null
+  linkDescription?: string | null
+  linkImage?: string | null
+  // Poll fields
+  pollQuestion?: string | null
+  pollOptions?: SadaPollOption[] | string | null  // array or JSON string
+  pollAllowMultiple?: boolean
+  pollExpiresAt?: string | null
+  // Counts
+  reactionsCount?: number
+  commentsCount?: number
+  myReaction?: string | null
+  reactions?: Record<string, number>
+  user?: {
+    id: string
+    username: string
+    name: string
+    avatarColor: string
+    avatarUrl?: string | null
+    isVerified?: boolean
+  }
 }
 
 export interface SadaPrompt {
@@ -58,6 +107,9 @@ export interface SadaComment {
   parentId?: string | null
   depth?: number
   replyToName?: string | null
+  isPinned?: boolean
+  isHidden?: boolean
+  editedAt?: string | null
   user: {
     id: string
     username: string

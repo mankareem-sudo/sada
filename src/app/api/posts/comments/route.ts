@@ -93,6 +93,9 @@ export async function GET(req: NextRequest) {
       createdAt: c.createdAt,
       parentId: c.parentId,
       depth: c.depth || 0,
+      isPinned: c.isPinned || false,
+      isHidden: c.isHidden || false,
+      editedAt: c.editedAt || null,
       user: userMap.get(c.userId),
       likesCount: commentLikeCounts[c.id] || 0,
       likedByMe: myCommentLikes.has(c.id),
@@ -109,7 +112,42 @@ export async function GET(req: NextRequest) {
 
   // Return only top-level comments (with nested replies)
   const topLevelIds = new Set((topLevelComments as any[]).map((c: any) => c.id))
-  const result = Array.from(commentMap.values()).filter((c: any) => topLevelIds.has(c.id))
+  let result = Array.from(commentMap.values()).filter((c: any) => topLevelIds.has(c.id))
+
+  // Sort: pinned comments first, then by createdAt ascending
+  result.sort((a: any, b: any) => {
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  })
+
+  // Filter hidden comments for viewers (not post owner, not comment author, not admin)
+  if (currentUser) {
+    const post = await db.post.findUnique({ where: { id: postId }, select: { userId: true } }).catch(() => null)
+    const postOwnerId = post?.userId
+    result = result.filter((c: any) => {
+      if (!c.isHidden) return true
+      // Visible only if: post owner, comment author, or admin
+      return currentUser.id === postOwnerId || currentUser.id === c.user?.id || currentUser.isAdmin
+    }).map((c: any) => {
+      // Also filter hidden replies inside the tree
+      if (c.replies && c.replies.length > 0) {
+        c.replies = c.replies.filter((r: any) => {
+          if (!r.isHidden) return true
+          return currentUser.id === postOwnerId || currentUser.id === r.user?.id || currentUser.isAdmin
+        })
+      }
+      return c
+    })
+  } else {
+    // Not logged in — hide all hidden comments
+    result = result.filter((c: any) => !c.isHidden).map((c: any) => {
+      if (c.replies && c.replies.length > 0) {
+        c.replies = c.replies.filter((r: any) => !r.isHidden)
+      }
+      return c
+    })
+  }
 
   return NextResponse.json({ comments: result })
 }

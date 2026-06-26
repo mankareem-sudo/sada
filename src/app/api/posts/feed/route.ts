@@ -3,6 +3,12 @@ import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 
 function safePost(p: any, currentUserId?: string) {
+  // Parse poll options if they're stored as JSON string
+  let pollOptions: any = p.pollOptions
+  if (typeof pollOptions === 'string' && pollOptions) {
+    try { pollOptions = JSON.parse(pollOptions) } catch { pollOptions = null }
+  }
+
   return {
     id: p.id,
     type: p.type,
@@ -29,6 +35,20 @@ function safePost(p: any, currentUserId?: string) {
     myReaction: p.myReaction || null,
     reactions: p.reactions || {},
     reactionsCount: p.reactionsCount || 0,
+    // Link preview (for type='link')
+    linkUrl: p.linkUrl || null,
+    linkTitle: p.linkTitle || null,
+    linkDescription: p.linkDescription || null,
+    linkImage: p.linkImage || null,
+    // Poll fields (for type='poll')
+    pollQuestion: p.pollQuestion || null,
+    pollOptions: pollOptions || null,
+    pollAllowMultiple: p.pollAllowMultiple || false,
+    pollExpiresAt: p.pollExpiresAt || null,
+    // Poll vote totals (if populated)
+    pollTotals: p.pollTotals || null,
+    pollMyVotes: p.pollMyVotes || null,
+    pollTotalVotes: p.pollTotalVotes || 0,
   }
 }
 
@@ -187,6 +207,37 @@ export async function GET(req: NextRequest) {
     reactionsCount: Object.values(reactionCounts[p.id] || {}).reduce((a: number, b: any) => a + (b as number), 0),
   }))
 
+  // === Fetch poll votes for poll posts ===
+  const pollPostIds = posts.filter((p: any) => p.type === 'poll').map((p: any) => p.id)
+  let pollTotalsMap: Record<string, Record<string, number>> = {}
+  let pollMyVotesMap: Record<string, string[]> = {}
+  let pollTotalVotesMap: Record<string, number> = {}
+
+  if (pollPostIds.length > 0) {
+    const allVotes = await db.pollVote.findMany({
+      where: { postId: { in: pollPostIds } },
+      select: { postId: true, optionId: true, userId: true },
+    })
+    for (const v of allVotes as any[]) {
+      if (!pollTotalsMap[v.postId]) pollTotalsMap[v.postId] = {}
+      pollTotalsMap[v.postId][v.optionId] = (pollTotalsMap[v.postId][v.optionId] || 0) + 1
+      pollTotalVotesMap[v.postId] = (pollTotalVotesMap[v.postId] || 0) + 1
+      if (user && v.userId === user.id) {
+        if (!pollMyVotesMap[v.postId]) pollMyVotesMap[v.postId] = []
+        pollMyVotesMap[v.postId].push(v.optionId)
+      }
+    }
+  }
+
+  // Attach poll data to enriched posts
+  for (const p of enrichedPosts) {
+    if (p.type === 'poll') {
+      p.pollTotals = pollTotalsMap[p.id] || {}
+      p.pollMyVotes = pollMyVotesMap[p.id] || []
+      p.pollTotalVotes = pollTotalVotesMap[p.id] || 0
+    }
+  }
+
   // === Smart Feed Ranking (6-criteria algorithm from strategy doc) ===
   // 1. Relevance (1): Is the post author followed by the user? (highest weight)
   // 2. Interaction depth (2): Total likes + comments (engagement)
@@ -214,6 +265,20 @@ export async function GET(req: NextRequest) {
     // 3. Acoustic quality — voice posts get a small boost
     if (p.type === 'voice' || p.voiceNoteId) {
       score += 10
+    }
+    // 3b. Polls get a strong engagement boost (10× comments per Facebook research)
+    if (p.type === 'poll') {
+      score += 20
+      // Active polls (not expired) get extra boost
+      if (p.pollExpiresAt && new Date(p.pollExpiresAt) > new Date()) {
+        score += 5
+      }
+      // Posts with more poll votes rank higher
+      score += Math.min(Math.log10((p.pollTotalVotes || 0) + 1) * 8, 16)
+    }
+    // 3c. Link posts get small boost (rich content)
+    if (p.type === 'link' && p.linkUrl) {
+      score += 5
     }
 
     // 4. Recency — posts lose ~1 point per hour, max -20 after 20h

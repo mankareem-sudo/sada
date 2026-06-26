@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Avatar } from './Avatar'
 import { Button } from '@/components/ui/button'
-import { Heart, MessageCircle, CornerDownRight, Trash2, Send, X, Loader2, ThumbsUp } from 'lucide-react'
+import { Heart, MessageCircle, CornerDownRight, Trash2, Send, X, Loader2, ThumbsUp, Pin, EyeOff, Pencil } from 'lucide-react'
 import { timeAgo, formatCount } from '@/lib/format'
 import type { SadaComment } from '@/lib/types'
 import { useSada } from '@/lib/store'
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 interface CommentsSectionProps {
   voiceNoteId: string
   initialCount: number
+  postOwnerId?: string
 }
 
 interface NestedComment extends SadaComment {
@@ -23,7 +24,7 @@ interface NestedComment extends SadaComment {
   replies?: NestedComment[]
 }
 
-export function CommentsSection({ voiceNoteId, initialCount }: CommentsSectionProps) {
+export function CommentsSection({ voiceNoteId, initialCount, postOwnerId }: CommentsSectionProps) {
   const [open, setOpen] = useState(false)
   const [comments, setComments] = useState<NestedComment[]>([])
   const [loading, setLoading] = useState(false)
@@ -96,6 +97,51 @@ export function CommentsSection({ voiceNoteId, initialCount }: CommentsSectionPr
     } catch {}
   }
 
+  const togglePin = async (commentId: string) => {
+    if (!user || user.id !== postOwnerId) return
+    const target = findComment(comments, commentId)
+    if (!target) return
+    const newPinned = !target.isPinned
+    setComments(prev => setPinnedInTree(prev, commentId, newPinned))
+    try {
+      const res = await fetch('/api/comments/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId, postId: voiceNoteId, pinned: newPinned }),
+      })
+      const data = await res.json()
+      if (data.pinned !== undefined) {
+        // If pinned, remove pin from any other comment (server enforces single-pin)
+        if (data.pinned) {
+          setComments(prev => unpinOthersInTree(prev, commentId))
+        }
+        toast.success(newPinned ? 'تم تثبيت التعليق' : 'تم إلغاء التثبيت')
+      }
+    } catch {
+      toast.error('فشل التثبيت')
+      setComments(prev => setPinnedInTree(prev, commentId, !newPinned))
+    }
+  }
+
+  const toggleHide = async (commentId: string) => {
+    if (!user) return
+    const target = findComment(comments, commentId)
+    if (!target) return
+    const newHidden = !target.isHidden
+    setComments(prev => setHiddenInTree(prev, commentId, newHidden))
+    try {
+      await fetch('/api/comments/hide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId, postId: voiceNoteId, hidden: newHidden }),
+      })
+      toast.success(newHidden ? 'تم إخفاء التعليق' : 'تم إظهار التعليق')
+    } catch {
+      toast.error('فشل الإخفاء')
+      setComments(prev => setHiddenInTree(prev, commentId, !newHidden))
+    }
+  }
+
   const totalCount = countAllComments(comments)
 
   return (
@@ -156,6 +202,10 @@ export function CommentsSection({ voiceNoteId, initialCount }: CommentsSectionPr
                   }}
                   onDelete={remove}
                   onLike={toggleCommentLike}
+                  onPin={togglePin}
+                  onHide={toggleHide}
+                  canPin={!!user && user.id === postOwnerId}
+                  canHide={!!user && (user.id === postOwnerId || user.id === c.user?.id || user.isAdmin)}
                   onSubmitReply={(parentId, text) => {
                     // Submit reply
                     fetch('/api/posts/comments', {
@@ -226,6 +276,51 @@ function toggleLikeInTree(comments: NestedComment[], commentId: string): NestedC
   })
 }
 
+function findComment(comments: NestedComment[], id: string): NestedComment | null {
+  for (const c of comments) {
+    if (c.id === id) return c
+    if (c.replies) {
+      const found = findComment(c.replies, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function setPinnedInTree(comments: NestedComment[], id: string, pinned: boolean): NestedComment[] {
+  return comments.map(c => {
+    if (c.id === id) {
+      return { ...c, isPinned: pinned }
+    }
+    if (c.replies && c.replies.length > 0) {
+      return { ...c, replies: setPinnedInTree(c.replies, id, pinned) }
+    }
+    return c
+  })
+}
+
+function unpinOthersInTree(comments: NestedComment[], exceptId: string): NestedComment[] {
+  return comments.map(c => {
+    const next = c.id !== exceptId && c.isPinned ? { ...c, isPinned: false } : c
+    if (next.replies && next.replies.length > 0) {
+      return { ...next, replies: unpinOthersInTree(next.replies, exceptId) }
+    }
+    return next
+  })
+}
+
+function setHiddenInTree(comments: NestedComment[], id: string, hidden: boolean): NestedComment[] {
+  return comments.map(c => {
+    if (c.id === id) {
+      return { ...c, isHidden: hidden }
+    }
+    if (c.replies && c.replies.length > 0) {
+      return { ...c, replies: setHiddenInTree(c.replies, id, hidden) }
+    }
+    return c
+  })
+}
+
 // === Comment Item Component (recursive) ===
 
 function CommentItem({
@@ -236,6 +331,10 @@ function CommentItem({
   onDelete,
   onLike,
   onSubmitReply,
+  onPin,
+  onHide,
+  canPin,
+  canHide,
 }: {
   comment: NestedComment
   user: any
@@ -244,11 +343,66 @@ function CommentItem({
   onDelete: (id: string) => void
   onLike: (commentId: string) => void
   onSubmitReply: (parentId: string, text: string) => void
+  onPin?: (commentId: string) => void
+  onHide?: (commentId: string) => void
+  canPin?: boolean
+  canHide?: boolean
 }) {
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [replyText, setReplyText] = useState('')
   const depth = comment.depth || 0
   const maxDepth = 5
+
+  // Hidden comment placeholder (only visible to author/post-owner/admin)
+  if (comment.isHidden) {
+    return (
+      <div className={cn('flex gap-2 items-start', depth > 0 && 'mr-6')}>
+        <div className="shrink-0">
+          <Avatar
+            name={comment.user?.name || '?'}
+            color={comment.user?.avatarColor || '#888'}
+            imageUrl={comment.user?.avatarUrl}
+            size="sm"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="bg-muted/20 rounded-2xl px-3 py-2 inline-block border border-dashed border-border/50">
+            <p className="text-xs text-muted-foreground italic">
+              تم إخفاء هذا التعليق
+            </p>
+          </div>
+          {canHide && onHide && (
+            <button
+              onClick={() => onHide(comment.id)}
+              className="text-[11px] text-muted-foreground hover:text-primary mt-1 ml-2"
+            >
+              إظهار
+            </button>
+          )}
+          {comment.replies && comment.replies.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {comment.replies.map((reply) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  user={user}
+                  onOpenProfile={onOpenProfile}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  onLike={onLike}
+                  onSubmitReply={onSubmitReply}
+                  onPin={onPin}
+                  onHide={onHide}
+                  canPin={canPin}
+                  canHide={canHide}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn('flex gap-2 items-start', depth > 0 && 'mr-6')}>
@@ -265,8 +419,17 @@ function CommentItem({
         />
       </button>
       <div className="flex-1 min-w-0">
-        <div className="bg-muted/40 rounded-2xl px-3 py-2 inline-block max-w-full">
-          <div className="flex items-center gap-2 mb-0.5">
+        <div className={cn(
+          'rounded-2xl px-3 py-2 inline-block max-w-full',
+          comment.isPinned ? 'bg-primary/5 border border-primary/20' : 'bg-muted/40'
+        )}>
+          {comment.isPinned && (
+            <div className="flex items-center gap-1 mb-1 text-[10px] text-primary font-medium">
+              <Pin className="h-3 w-3" />
+              مثبّت
+            </div>
+          )}
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <button
               onClick={() => comment.user?.username && onOpenProfile(comment.user.username)}
               className="font-medium text-sm hover:underline"
@@ -278,13 +441,20 @@ function CommentItem({
                 ← رد على {comment.replyToName}
               </span>
             )}
-            <span className="text-[10px] text-muted-foreground">{timeAgo(comment.createdAt)}</span>
+            <span className="text-[10px] text-muted-foreground">
+              {timeAgo(comment.createdAt)}
+              {comment.editedAt && (
+                <span className="ml-1" title="تم التعديل">
+                  <Pencil className="inline h-2.5 w-2.5" /> معدّل
+                </span>
+              )}
+            </span>
           </div>
           {comment.content && <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>}
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-3 mt-1 ml-2">
+        <div className="flex items-center gap-3 mt-1 ml-2 flex-wrap">
           <button
             onClick={() => onLike(comment.id)}
             className={cn(
@@ -305,6 +475,29 @@ function CommentItem({
             >
               <CornerDownRight className="h-3 w-3" />
               رد
+            </button>
+          )}
+
+          {canPin && onPin && depth === 0 && (
+            <button
+              onClick={() => onPin(comment.id)}
+              className={cn(
+                'text-[11px] flex items-center gap-1 transition',
+                comment.isPinned ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+              )}
+              title={comment.isPinned ? 'إلغاء التثبيت' : 'تثبيت التعليق'}
+            >
+              <Pin className="h-3 w-3" />
+            </button>
+          )}
+
+          {canHide && onHide && (
+            <button
+              onClick={() => onHide(comment.id)}
+              className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+              title={comment.isHidden ? 'إظهار التعليق' : 'إخفاء التعليق'}
+            >
+              <EyeOff className="h-3 w-3" />
             </button>
           )}
 
@@ -374,6 +567,10 @@ function CommentItem({
                 onDelete={onDelete}
                 onLike={onLike}
                 onSubmitReply={onSubmitReply}
+                onPin={onPin}
+                onHide={onHide}
+                canPin={canPin}
+                canHide={canHide}
               />
             ))}
           </div>
