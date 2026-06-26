@@ -8,7 +8,7 @@
  */
 
 import nodemailer from 'nodemailer'
-import { logger } from './logger'
+import { logger, getAppUrl } from './logger'
 
 // Lazy-load transporter (only when needed)
 let transporter: nodemailer.Transporter | null = null
