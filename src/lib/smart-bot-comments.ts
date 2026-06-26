@@ -1,5 +1,4 @@
 /**
-import { logger } from './logger'
  * Smart Bot Comment Generator
  *
  * Uses OpenRouter free AI models to generate contextual Egyptian Arabic
@@ -8,6 +7,7 @@ import { logger } from './logger'
  * Falls back to keyword-based matching if AI is unavailable.
  */
 
+import { logger } from './logger'
 import { chatJSON, chatCompletion } from './openrouter'
 import { generateEgyptianComment, pickRandom } from './egyptian-bots'
 
