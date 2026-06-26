@@ -50,15 +50,24 @@ export interface SadaVoiceNote {
 
 export interface SadaComment {
   id: string
-  content: string
+  content?: string | null
+  imageUrl?: string | null
+  voiceData?: string | null
+  voiceDuration?: number | null
   createdAt: string
   parentId?: string | null
+  depth?: number
+  replyToName?: string | null
   user: {
     id: string
     username: string
     name: string
     avatarColor: string
-  }
+    avatarUrl?: string | null
+    isVerified?: boolean
+  } | null
+  likedByMe?: boolean
+  likesCount?: number
   replies?: SadaComment[]
 }
 
