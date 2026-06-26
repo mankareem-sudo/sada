@@ -1,5 +1,4 @@
 /**
-import { logger, getAppUrl } from './logger'
  * OpenRouter API Client
  *
  * Free models available (as of 2026):
@@ -15,6 +14,8 @@ import { logger, getAppUrl } from './logger'
  * - Request timeout
  * - Cost tracking (free models = $0)
  */
+
+import { logger, getAppUrl } from './logger'
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
