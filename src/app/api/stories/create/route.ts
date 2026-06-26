@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const STORY_COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#a855f7', '#14b8a6']
+    const STORY_COLORS = ['#1763CC', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#3B82F6', '#14b8a6']
 
     const story = await db.voiceStory.create({
       data: {

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       username = `${baseUsername}${suffix}`
     }
 
-    const AVATAR_COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#a855f7', '#14b8a6']
+    const AVATAR_COLORS = ['#1763CC', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#3B82F6', '#14b8a6']
     
     user = await db.user.create({
       data: {

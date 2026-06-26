@@ -286,7 +286,7 @@ export function StoriesBar({ onOpenProfile }: { onOpenProfile: (username: string
           <div
             className="w-full max-w-md rounded-3xl p-8 flex flex-col items-center justify-center min-h-[400px]"
             style={{
-              background: `linear-gradient(135deg, ${currentStory?.backgroundColor || '#8b5cf6'}, ${currentStory?.backgroundColor || '#8b5cf6'}aa)`,
+              background: `linear-gradient(135deg, ${currentStory?.backgroundColor || '#1763CC'}, ${currentStory?.backgroundColor || '#1763CC'}aa)`,
             }}
           >
             {loadingStory ? (

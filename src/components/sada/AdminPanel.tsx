@@ -511,7 +511,7 @@ export function AdminPanel() {
               icon={Mic}
               label="محفوظات"
               value={stats.bookmarks}
-              color="text-violet-400"
+              color="text-blue-400"
             />
           </div>
 
@@ -1053,7 +1053,7 @@ export function AdminPanel() {
       {tab === 'sentinel' && (
         <div className="space-y-4">
           {/* Scan button */}
-          <Card className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-500/20">
+          <Card className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">

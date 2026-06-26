@@ -100,7 +100,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0f",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#101724" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -128,7 +131,12 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('sada-theme') || 'dark';
+                  var savedTheme = localStorage.getItem('sada-theme');
+                  var theme = savedTheme || (
+                    window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+                      ? 'light'
+                      : 'dark'
+                  );
                   var lang = localStorage.getItem('sada-language') || 'ar';
                   document.documentElement.classList.add(theme);
                   document.documentElement.lang = lang;

@@ -113,10 +113,10 @@ export async function sendPasswordResetEmail(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
+<body style="margin:0;padding:0;background:#101724;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
   <div style="max-width:480px;margin:0 auto;padding:40px 20px;">
     <div style="text-align:center;margin-bottom:32px;">
-      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
+      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#1763CC,#0F4C9C);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
       <h1 style="color:#fff;font-size:24px;margin:16px 0 8px;">صدى</h1>
       <p style="color:#9ca3af;font-size:14px;">منصة الحوار الصوتي العربي</p>
     </div>
@@ -129,8 +129,8 @@ export async function sendPasswordResetEmail(
         إنت طلبت استعادة كلمة المرور بتاعتك في صدى. استخدم الكود ده:
       </p>
       
-      <div style="background:#1c1830;border:2px dashed #8b5cf6;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
-        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#8b5cf6;font-family:'Courier New',monospace;">
+      <div style="background:#101724;border:2px dashed #1763CC;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#1763CC;font-family:'Courier New',monospace;">
           ${code}
         </div>
       </div>
@@ -178,17 +178,17 @@ export async function sendVerificationEmail(
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
+<body style="margin:0;padding:0;background:#101724;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
   <div style="max-width:480px;margin:0 auto;padding:40px 20px;">
     <div style="text-align:center;margin-bottom:32px;">
-      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
+      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#1763CC,#0F4C9C);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
       <h1 style="color:#fff;font-size:24px;margin:16px 0 8px;">صدى</h1>
     </div>
     <div style="background:#15121f;border:1px solid #2a2440;border-radius:16px;padding:32px;">
       <h2 style="color:#fff;font-size:18px;margin:0 0 16px;">تأكيد البريد الإلكتروني</h2>
       <p style="color:#9ca3af;font-size:14px;line-height:1.6;margin:0 0 24px;">مرحباً ${name}، استخدم الكود ده لتأكيد بريدك:</p>
-      <div style="background:#1c1830;border:2px dashed #8b5cf6;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
-        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#8b5cf6;font-family:'Courier New',monospace;">${code}</div>
+      <div style="background:#101724;border:2px dashed #1763CC;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#1763CC;font-family:'Courier New',monospace;">${code}</div>
       </div>
       <p style="color:#9ca3af;font-size:13px;">الكود صالح لمدة 15 دقيقة.</p>
     </div>
@@ -224,10 +224,10 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<boolea
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
+<body style="margin:0;padding:0;background:#101724;font-family:'Segoe UI',Tahoma,sans-serif;color:#e5e7eb;">
   <div style="max-width:480px;margin:0 auto;padding:40px 20px;">
     <div style="text-align:center;margin-bottom:32px;">
-      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
+      <div style="display:inline-block;width:64px;height:64px;background:linear-gradient(135deg,#1763CC,#0F4C9C);border-radius:16px;line-height:64px;font-size:32px;">🎤</div>
       <h1 style="color:#fff;font-size:24px;margin:16px 0 8px;">صدى</h1>
       <p style="color:#9ca3af;font-size:14px;">منصة الحوار الصوتي العربي</p>
     </div>
@@ -240,7 +240,7 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<boolea
         كل يوم سؤال واحد، وإجابات صوتية مدتها 90 ثانية. حوار هادئ بلا سخرية ولا إساءة.
       </p>
       
-      <a href="${appUrl}" style="display:inline-block;background:#8b5cf6;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
+      <a href="${appUrl}" style="display:inline-block;background:#1763CC;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
         ابدأ بأول تسجيل
       </a>
     </div>

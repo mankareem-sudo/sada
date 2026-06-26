@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     "username" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "bio" TEXT,
-    "avatarColor" TEXT NOT NULL DEFAULT '#8b5cf6',
+    "avatarColor" TEXT NOT NULL DEFAULT '#1763CC',
     "passwordHash" TEXT,
     "isAdmin" BOOLEAN NOT NULL DEFAULT false,
     "onboarded" BOOLEAN NOT NULL DEFAULT false,

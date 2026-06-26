@@ -15,8 +15,8 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { sendVerificationEmail } from '@/lib/email'
 
 const AVATAR_COLORS = [
-  '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
-  '#ef4444', '#3b82f6', '#a855f7', '#14b8a6',
+  '#1763CC', '#ec4899', '#f59e0b', '#10b981',
+  '#ef4444', '#3b82f6', '#3B82F6', '#14b8a6',
   '#f97316', '#6366f1',
 ]
 

@@ -15,13 +15,13 @@ import { useSada } from '@/lib/store'
 import { toast } from 'sonner'
 
 const INTERESTS = [
-  { id: 'tech', label: 'تقنية وبرمجة', icon: Code, color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
+  { id: 'tech', label: 'تقنية وبرمجة', icon: Code, color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
   { id: 'design', label: 'تصميم وفن', icon: Palette, color: 'bg-pink-500/20 text-pink-300 border-pink-500/30' },
   { id: 'business', label: 'ريادة أعمال', icon: Briefcase, color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
   { id: 'learning', label: 'تعلم وتطوير', icon: GraduationCap, color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
   { id: 'health', label: 'صحة ولياقة', icon: HeartPulse, color: 'bg-red-500/20 text-red-300 border-red-500/30' },
   { id: 'creativity', label: 'كتابة وإبداع', icon: Sparkles, color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
-  { id: 'culture', label: 'ثقافة وكتب', icon: Globe, color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+  { id: 'culture', label: 'ثقافة وكتب', icon: Globe, color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
   { id: 'life', label: 'تطوير الذات', icon: LifeBuoy, color: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
 ]
 

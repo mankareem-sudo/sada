@@ -290,8 +290,8 @@ export function generateEgyptianName(gender: 'male' | 'female'): {
 
 export function generateAvatarColor(): string {
   const colors = [
-    '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444',
-    '#3b82f6', '#a855f7', '#14b8a6', '#f97316', '#06b6d4',
+    '#1763CC', '#ec4899', '#f59e0b', '#10b981', '#ef4444',
+    '#3b82f6', '#3B82F6', '#14b8a6', '#f97316', '#06b6d4',
     '#84cc16', '#eab308', '#6366f1', '#d946ef', '#0891b2',
   ]
   return pickRandom(colors)

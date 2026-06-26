@@ -240,7 +240,7 @@ export function SettingsModal({
               ) : (
                 <div
                   className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg"
-                  style={{ background: `linear-gradient(135deg, ${user?.avatarColor || '#8b5cf6'}, ${user?.avatarColor || '#8b5cf6'}cc)` }}
+                  style={{ background: `linear-gradient(135deg, ${user?.avatarColor || '#1763CC'}, ${user?.avatarColor || '#1763CC'}cc)` }}
                 >
                   {(user?.name || '?').charAt(0).toUpperCase()}
                 </div>

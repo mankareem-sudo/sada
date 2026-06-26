@@ -40,11 +40,11 @@ export default async function EmbedWidget() {
             margin-bottom: 24px; color: #fff;
           }
           .btn {
-            display: inline-block; background: #8b5cf6; color: #fff;
+            display: inline-block; background: #1763CC; color: #fff;
             padding: 12px 32px; border-radius: 10px; text-decoration: none;
             font-weight: 600; font-size: 15px; transition: background 0.2s;
           }
-          .btn:hover { background: #7c3aed; }
+          .btn:hover { background: #0F4C9C; }
           .footer { margin-top: 16px; font-size: 11px; color: #6b7280; }
         `}</style>
       </head>
