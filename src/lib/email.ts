@@ -204,7 +204,8 @@ export async function sendVerificationEmail(
  */
 export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
   const subject = 'مرحباً بيك في صدى 🎙️'
-  
+  const appUrl = getAppUrl()
+
   const text = `مرحباً ${name}،
 
 أهلاً بيك في صدى — منصة الحوار الصوتي العربي.
