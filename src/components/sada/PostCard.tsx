@@ -542,7 +542,7 @@ export function PostCard({
               <span className="tabular-nums">{formatCount(post.commentsCount)}</span>
             </button>
 
-            <button onClick={share} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition">
+            <button onClick={sharePost} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition">
               <Share2 className="h-5 w-5" />
             </button>
 
