@@ -91,7 +91,10 @@ export function TodayView() {
       }} />
 
       {/* Who to follow */}
-      <WhoToFollow />
+      <WhoToFollow onOpenProfile={(u) => {
+        useSada.getState().setViewedUsername(u)
+        useSada.getState().setTab('profile')
+      }} />
     </div>
   )
 }
