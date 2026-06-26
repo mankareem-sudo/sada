@@ -3,6 +3,7 @@ import { Cairo, Tajawal } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { getAppUrl } from "@/lib/logger";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -22,7 +23,7 @@ const APP_NAME_AR = process.env.NEXT_PUBLIC_APP_NAME_AR || "صدى";
 const DEVELOPER = process.env.NEXT_PUBLIC_DEVELOPER || "Sada Team";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://my-project-one-lake-82.vercel.app"),
+  metadataBase: new URL(getAppUrl()),
   title: {
     default: `${APP_NAME_AR} — منصة الحوار الصوتي العربي`,
     template: `%s | ${APP_NAME_AR}`,

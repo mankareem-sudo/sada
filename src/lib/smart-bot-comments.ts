@@ -1,4 +1,5 @@
 /**
+import { logger } from './logger'
  * Smart Bot Comment Generator
  *
  * Uses OpenRouter free AI models to generate contextual Egyptian Arabic
@@ -56,7 +57,7 @@ export async function generateSmartComment(
         maxTokens: 150,
       })
 
-      console.log('[SmartComment] AI result:', JSON.stringify({
+      logger.debug('[SmartComment] AI result:', JSON.stringify({
         hasContent: !!result.content,
         contentLength: result.content?.length || 0,
         model: result.model,
@@ -77,7 +78,7 @@ export async function generateSmartComment(
         }
       }
     } catch (e) {
-      console.warn('[SmartComment] AI failed:', e instanceof Error ? e.message : String(e))
+      logger.warn('[SmartComment] AI failed:', e instanceof Error ? e.message : String(e))
     }
   }
 

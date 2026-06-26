@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next'
+import { getAppUrl } from '@/lib/logger'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://my-project-one-lake-82.vercel.app'
+  const baseUrl = getAppUrl()
   const lastModified = new Date()
 
   // Static public pages

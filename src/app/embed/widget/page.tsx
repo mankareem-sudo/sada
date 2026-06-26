@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getTodayPrompt } from '@/lib/prompts'
+import { getAppUrl } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,7 @@ export default async function EmbedWidget() {
           <div className="logo">🎤</div>
           <div className="title">سؤال اليوم من صدى</div>
           <div className="question">{prompt?.text || 'مفيش سؤال اليوم'}</div>
-          <a href="https://my-project-one-lake-82.vercel.app" className="btn" target="_blank" rel="noopener">
+          <a href={getAppUrl()} className="btn" target="_blank" rel="noopener">
             سجّل إجابتك الصوتية
           </a>
           <div className="footer">صدى — منصة الحوار الصوتي العربي</div>

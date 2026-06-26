@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next'
+import { getAppUrl } from '@/lib/logger'
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = 'https://my-project-one-lake-82.vercel.app'
+  const baseUrl = getAppUrl()
 
   return {
     rules: [

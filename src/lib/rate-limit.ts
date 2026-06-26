@@ -172,10 +172,29 @@ export const RATE_LIMITS = {
     max: 5,
   },
   
-  // Search: 60 per minute per IP
+  // Search: 30 per minute per IP (reduced from 60 for stronger protection)
   search: {
     windowMs: 60 * 1000,
+    max: 30,
+  },
+
+  // Post creation: 20 per hour per user (new — prevents spam)
+  postCreate: {
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    blockDurationMs: 30 * 60 * 1000,
+  },
+
+  // Feed: 60 per minute per IP (new — prevents API abuse)
+  feed: {
+    windowMs: 60 * 1000,
     max: 60,
+  },
+
+  // AI moderation check: 20 per hour per user (new — prevents AI cost abuse)
+  aiModeration: {
+    windowMs: 60 * 60 * 1000,
+    max: 20,
   },
   
   // Donations: 3 per hour per IP

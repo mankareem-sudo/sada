@@ -1,4 +1,5 @@
 /**
+import { logger, getAppUrl } from './logger'
  * OpenRouter API Client
  *
  * Free models available (as of 2026):
@@ -90,7 +91,7 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<Ch
         return result
       }
     } catch (e: any) {
-      console.warn(`[OpenRouter] Model ${currentModel} failed:`, e.message?.slice(0, 200))
+      logger.warn(`[OpenRouter] Model ${currentModel} failed:`, e.message?.slice(0, 200))
       // Continue to next model
       if (e.status === 429) {
         // Rate limited — wait a bit before trying next
@@ -135,7 +136,7 @@ async function callModel(
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://my-project-one-lake-82.vercel.app',
+        'HTTP-Referer': getAppUrl(),
         'X-Title': 'Sada - Arabic Voice Platform',
       },
       body: JSON.stringify(body),
@@ -143,7 +144,7 @@ async function callModel(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '')
-      console.warn(`[OpenRouter] ${model} HTTP ${res.status}:`, errText.slice(0, 300))
+      logger.warn(`[OpenRouter] ${model} HTTP ${res.status}:`, errText.slice(0, 300))
       const error = new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`) as any
       error.status = res.status
       throw error
@@ -155,7 +156,7 @@ async function callModel(
     try {
       data = JSON.parse(resText)
     } catch (parseErr) {
-      console.warn(`[OpenRouter] ${model} JSON parse failed. Raw:`, resText.slice(0, 200))
+      logger.warn(`[OpenRouter] ${model} JSON parse failed. Raw:`, resText.slice(0, 200))
       throw new Error(`JSON parse error: ${resText.slice(0, 100)}`)
     }
     

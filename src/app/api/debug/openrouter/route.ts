@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAppUrl } from '@/lib/logger'
 
 /**
  * GET /api/debug/openrouter
@@ -34,7 +35,7 @@ export async function GET() {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://my-project-one-lake-82.vercel.app',
+        'HTTP-Referer': getAppUrl(),
         'X-Title': 'Sada',
       },
       body: JSON.stringify(body),

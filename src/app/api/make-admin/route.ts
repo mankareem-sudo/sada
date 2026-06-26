@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { getAppUrl } from '@/lib/logger'
 
 /**
  * POST /api/make-admin?token=xxx
@@ -81,7 +82,7 @@ export async function GET() {
     usage: 'POST /api/make-admin?token=sada-bootstrap-admin-2026',
     description: 'Promotes the current logged-in user to admin. Only works if no admin exists yet.',
     steps: [
-      '1. Sign up / log in to Sada at https://my-project-one-lake-82.vercel.app',
+      `1. Sign up / log in to Sada at ${getAppUrl()}`,
       '2. Open this URL in the same browser: /api/make-admin?token=sada-bootstrap-admin-2026',
       '3. Refresh the app — a new "إدارة" tab will appear in the bottom nav',
     ],

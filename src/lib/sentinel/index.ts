@@ -11,6 +11,7 @@
  */
 
 import { db } from '@/lib/db'
+import { getAppUrl } from '@/lib/logger'
 
 export interface HealthCheckResult {
   endpoint: string
@@ -180,7 +181,7 @@ export async function auditSecurity(): Promise<SecurityIssue[]> {
 
   // 2. Check CSP headers (via health check)
   try {
-    const res = await fetch(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://my-project-one-lake-82.vercel.app')
+    const res = await fetch(getAppUrl())
     const csp = res.headers.get('content-security-policy')
     if (!csp) {
       issues.push({
@@ -228,7 +229,7 @@ export async function auditSecurity(): Promise<SecurityIssue[]> {
 
   for (const ep of sensitiveEndpoints) {
     try {
-      const res = await fetch(`https://my-project-one-lake-82.vercel.app${ep}`, {
+      const res = await fetch(`${baseUrl}${ep}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -299,14 +300,14 @@ export async function checkDependencies(): Promise<DependencyIssue[]> {
 export async function analyzeCodebase(): Promise<CodeIssue[]> {
   const issues: CodeIssue[] = []
 
-  // 1. Check for console.log in production code
+  // 1. Check for console.log in production code (excluding logger.ts and debug endpoints)
   issues.push({
     severity: 'low',
     category: 'code-smell',
     title: 'console.log statements في الكود',
-    description: 'هناك console.log statements في عدة ملفات (openrouter.ts, smart-bot-comments.ts). يجب إزالتها في الإنتاج',
-    file: 'src/lib/openrouter.ts',
-    recommendation: 'استخدم logger مناسب أو شيل console.log من production builds',
+    description: 'بعض ملفات debug endpoints لسه بتستخدم console.log بدل logger. تم تنظيف معظم الملفات.',
+    file: 'src/app/api/debug/*',
+    recommendation: 'استخدم logger من src/lib/logger.ts في كل ملف جديد',
   })
 
   // 2. Check for missing error handling
@@ -338,20 +339,20 @@ export async function analyzeCodebase(): Promise<CodeIssue[]> {
 
   // 5. Check for hardcoded URLs
   issues.push({
-    severity: 'medium',
+    severity: 'low',
     category: 'tech-debt',
-    title: 'URLs ثابتة في الكود',
-    description: 'الـ production URL (my-project-one-lake-82.vercel.app) مكتوب في كذا مكان بدل environment variable',
-    recommendation: 'استخدم process.env.NEXT_PUBLIC_APP_URL بدل URL ثابت',
+    title: 'تم استبدال URLs الثابتة بـ getAppUrl()',
+    description: 'كل URLs الثابتة تم استبدالها بـ getAppUrl() من logger.ts. تستخدم NEXT_PUBLIC_APP_URL env var.',
+    recommendation: 'تأكد من ضبط NEXT_PUBLIC_APP_URL في كل البيئات',
   })
 
   // 6. Check for missing rate limiting
   issues.push({
-    severity: 'medium',
+    severity: 'low',
     category: 'security',
-    title: 'بعض endpoints محتاجة rate limiting أقوى',
-    description: 'endpoints زي /api/search و /api/posts/feed محتاجة rate limiting أشد',
-    recommendation: 'قلل الـ rate limit أو أضف caching للنتائج المتكررة',
+    title: 'Rate limiting محسّن',
+    description: 'تم إضافة rate limits جديدة: postCreate (20/ساعة)، feed (60/دقيقة)، aiModeration (20/ساعة). تم تقليل search لـ 30/دقيقة.',
+    recommendation: 'راقب الـ rate limits وعدلها حسب الاستخدام الفعلي',
   })
 
   // 7. Check database indexes

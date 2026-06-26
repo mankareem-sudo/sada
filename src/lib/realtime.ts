@@ -27,12 +27,12 @@ export function useRealtime(userId: string | undefined) {
 
     socket.on('connect', () => {
       setIsConnected(true)
-      console.log('[WS] Connected')
+      // WebSocket connected (silent in production)
     })
 
     socket.on('disconnect', () => {
       setIsConnected(false)
-      console.log('[WS] Disconnected')
+      // WebSocket disconnected (silent in production)
     })
 
     socket.on('user:online', (data: { userId: string }) => {

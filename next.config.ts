@@ -49,12 +49,13 @@ const nextConfig: NextConfig = {
           // HSTS — force HTTPS for 2 years (including subdomains)
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           // CSP — Content Security Policy
-          // Allow self, Vercel, Supabase, Google Identity Services, and inline styles/scripts (Next.js requires this)
+          // Note: 'unsafe-eval' removed for production security
+          // Next.js production builds don't need it (only dev HMR does)
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://accounts.google.com",
+              "script-src 'self' 'unsafe-inline' https://vercel.live https://accounts.google.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",

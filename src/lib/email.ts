@@ -8,6 +8,7 @@
  */
 
 import nodemailer from 'nodemailer'
+import { logger } from './logger'
 
 // Lazy-load transporter (only when needed)
 let transporter: nodemailer.Transporter | null = null
@@ -19,7 +20,7 @@ function getTransporter(): nodemailer.Transporter {
   const gmailPass = process.env.GMAIL_APP_PASSWORD || ''
   
   if (!gmailPass) {
-    console.warn('[email] GMAIL_APP_PASSWORD not set - emails will be simulated')
+    logger.warn('[email] GMAIL_APP_PASSWORD not set - emails will be simulated')
   }
   
   transporter = nodemailer.createTransport({
@@ -56,12 +57,12 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   
   // If no password configured, simulate
   if (!gmailPass) {
-    console.log('========== EMAIL (SIMULATED) ==========')
-    console.log('From:', gmailUser)
-    console.log('To:', params.to)
-    console.log('Subject:', params.subject)
-    console.log('Text:', params.text)
-    console.log('=======================================')
+    logger.debug('========== EMAIL (SIMULATED) ==========')
+    logger.debug('From:', gmailUser)
+    logger.debug('To:', params.to)
+    logger.debug('Subject:', params.subject)
+    logger.debug('Text:', params.text)
+    logger.debug('=======================================')
     return true
   }
   
@@ -76,7 +77,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       html: params.html,
     })
     
-    console.log('[email] Sent:', info.messageId)
+    logger.info('[email] Sent:', info.messageId)
     return true
   } catch (e: any) {
     console.error('[email] Send error:', e?.message || e)
@@ -210,7 +211,7 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<boolea
 
 كل يوم سؤال واحد، وإجابات صوتية مدتها 90 ثانية. حوار هادئ بلا سخرية ولا إساءة.
 
-ابدأ بأول تسجيل من: https://my-project-one-lake-82.vercel.app
+ابدأ بأول تسجيل من: ${appUrl}
 
 مع تحيات،
 فريق صدى`
@@ -238,7 +239,7 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<boolea
         كل يوم سؤال واحد، وإجابات صوتية مدتها 90 ثانية. حوار هادئ بلا سخرية ولا إساءة.
       </p>
       
-      <a href="https://my-project-one-lake-82.vercel.app" style="display:inline-block;background:#8b5cf6;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
+      <a href="${appUrl}" style="display:inline-block;background:#8b5cf6;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
         ابدأ بأول تسجيل
       </a>
     </div>
