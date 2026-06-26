@@ -229,7 +229,7 @@ export async function auditSecurity(): Promise<SecurityIssue[]> {
 
   for (const ep of sensitiveEndpoints) {
     try {
-      const res = await fetch(`${baseUrl}${ep}`, {
+      const res = await fetch(`${getAppUrl()}${ep}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
